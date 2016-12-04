@@ -6,7 +6,9 @@ unit Execute.GraphicPanels;
 interface
 
 uses
+{$IFDEF DESIGN}
   DesignIntf,
+{$ENDIF}
   Winapi.Windows,
   Winapi.Messages,
   System.Types,
@@ -20,11 +22,17 @@ type
   private
     FGraphicParent: TGraphicPanel;
     FControls     : TList;
+  {$IFDEF DESIGN}
+    FSelection    : TGraphicPanel;
+    FMouseDown    : TPoint;
+    function Designer: IDesigner;
+    function SelectChild(Pos: TPoint): TGraphicPanel;
+    procedure SetTopLeft(x, y: Integer);
+  {$ENDIF}
     procedure SetGraphicParent(const Value: TGraphicPanel);
     function GetRoot: TGraphicPanel;
     procedure Render;
-    function SelectChild(Pos: TPoint): Boolean;
-    function DoSelect(const Pos: TPoint): Boolean;
+    function DoSelect(const Pos: TPoint): TGraphicPanel;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -35,11 +43,13 @@ type
     procedure GetChildren(Proc: TGetChildProc; Root: TComponent); override;
     function GetClientOrigin: TPoint; override;
     procedure Invalidate; override;
-//    function DesignWndProc(var Msg: TMessage): Boolean; override;
+  {$IFDEF DESIGN}
+    function DesignWndProc(var Msg: TMessage): Boolean; override;
+  {$ENDIF}
+    property GraphicParent: TGraphicPanel read FGraphicParent write SetGraphicParent;
   published
     property Caption;
     property Color;
-    property GraphicParent: TGraphicPanel read FGraphicParent write SetGraphicParent;
   end;
 
 implementation
@@ -53,13 +63,90 @@ begin
   FControls := TList.Create;
 end;
 
-//function TGraphicPanel.DesignWndProc(var Msg: TMessage): Boolean;
-//begin
-//  Result := False;
-//  case Msg.Msg of
-//    WM_LBUTTONDOWN: SelectChild(TWMLButtonDown(Msg).Pos);   <-- GraphicPanel2 move out of the form Top = Left = -813575024
-//  end;
-//end;
+{$IFDEF DESIGN}
+function TGraphicPanel.Designer: IDesigner;
+var
+  Form: TCustomForm;
+begin
+  Form := GetParentForm(GetRoot);
+  Result := Form.Designer as IDesigner;
+end;
+
+function TGraphicPanel.DesignWndProc(var Msg: TMessage): Boolean;
+begin
+  Result := False;
+  case Msg.Msg of
+    WM_LBUTTONDOWN:
+    begin
+      FMouseDown := TWMLButtonDown(Msg).Pos;
+      FSelection := SelectChild(FMouseDown);
+      if FSelection.FGraphicParent <> nil then
+      begin
+        FMouseDown.X := FSelection.Left - FMouseDown.X;
+        FMouseDown.Y := FSelection.Top - FMouseDown.Y;
+      end;
+      Designer.SelectComponent(FSelection);
+      Result := True; // don't know how to hide the selector :/
+    end;
+    WM_LBUTTONUP:
+    begin
+      Designer.Modified;
+    end;
+    WM_MOUSEMOVE:
+    begin
+      if (Msg.WParam and MK_LBUTTON) <> 0 then
+      begin
+        if FSelection <> nil then
+        begin
+          if FSelection.FGraphicParent = nil then
+          begin
+            FSelection.SetTopLeft(
+              FSelection.Left + TWMMouseMove(Msg).XPos - FMouseDown.X,
+              FSelection.Top + TWMMouseMove(Msg).YPos - FMouseDown.Y
+            );
+//            GetRoot.Parent.Invalidate;
+          end else begin
+            FSelection.SetTopLeft(
+              TWMMouseMove(Msg).XPos + FMouseDown.X,
+              TWMMouseMove(Msg).YPos + FMouseDown.Y
+            );
+          end;
+        end;
+      end;
+      Result := True; // required!
+    end;
+  end;
+end;
+
+function TGraphicPanel.SelectChild(Pos: TPoint): TGraphicPanel;
+var
+  Index: Integer;
+begin
+  Pos.Offset(Left, Top);
+  for Index := 0 to FControls.Count - 1 do
+  begin
+    Result := TGraphicPanel(FControls[Index]).DoSelect(Pos);
+    if Result <> nil then
+      Exit;
+  end;
+  Result := Self;
+end;
+
+procedure TGraphicPanel.SetTopLeft(x, y: Integer);
+var
+  dx, dy: Integer;
+  Index : Integer;
+begin
+  dx := x - Left;
+  dy := y - Top;
+  SetBounds(x, y, Width, Height);
+  for Index := 0 to FControls.Count - 1 do
+  begin
+    with TGraphicPanel(FControls[Index]) do
+      SetTopLeft(Left + dx, Top + dy);
+  end;
+end;
+{$ENDIF}
 
 destructor TGraphicPanel.Destroy;
 begin
@@ -69,24 +156,20 @@ begin
   inherited;
 end;
 
-function TGraphicPanel.DoSelect(const Pos: TPoint): Boolean;
+function TGraphicPanel.DoSelect(const Pos: TPoint): TGraphicPanel;
 var
   Index: Integer;
-  Form : TCustomForm;
 begin
-  Result := True;
   for Index := 0 to FControls.Count - 1 do
   begin
-    if TGraphicPanel(FControls[Index]).DoSelect(Pos) then
+    Result := TGraphicPanel(FControls[Index]).DoSelect(Pos);
+    if Result <> nil then
       Exit;
   end;
   if BoundsRect.Contains(Pos) then
-  begin
-    Form := GetParentForm(GetRoot);
-    (Form.Designer as IDesigner).SelectComponent(Self);
-    Exit;
-  end;
-  Result := False;
+    Result := Self
+  else
+    Result := nil;
 end;
 
 procedure TGraphicPanel.GetChildren(Proc: TGetChildProc; Root: TComponent);
@@ -182,19 +265,6 @@ begin
   finally
     Canvas.Unlock;
   end;
-end;
-
-function TGraphicPanel.SelectChild(Pos: TPoint): Boolean;
-var
-  Index: Integer;
-begin
-  Pos.Offset(Left, Top);
-  for Index := 0 to FControls.Count - 1 do
-  begin
-    if TGraphicPanel(FControls[Index]).DoSelect(Pos) then
-      Exit(True);
-  end;
-  Result := False;
 end;
 
 procedure TGraphicPanel.SetGraphicParent(const Value: TGraphicPanel);
