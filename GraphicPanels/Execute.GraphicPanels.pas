@@ -188,7 +188,7 @@ function TGraphicPanel.GetClientOrigin: TPoint;
 begin
   if FGraphicParent = nil then
   begin
-    inherited;
+    Result := inherited GetClientOrigin;
   end else begin
     Result := FGraphicParent.GetClientOrigin;
     Inc(Result.X, Left);
