@@ -16,10 +16,13 @@ type
 
   TMyProperty = class(TPersistent)
   private
+    FOwner       : TComponent;
     FMyCollection: TMyCollection;
     procedure SetMyCollection(Value: TMyCollection);
+  protected
+    function GetOwner: TPersistent; override; // Required by  TCollectionProperty
   public
-    constructor Create;
+    constructor Create(AOwner: TComponent);
     destructor Destroy; override;
   published
     property MyCollection: TMyCollection read FMyCollection write SetMyCollection;
@@ -50,9 +53,10 @@ end;
 
 { TMyProperty }
 
-constructor TMyProperty.Create;
+constructor TMyProperty.Create(AOwner: TComponent);
 begin
   inherited Create;
+  FOwner := AOwner;
   FMyCollection := TMyCollection.Create(Self, TMyItem);
 end;
 
@@ -60,6 +64,11 @@ destructor TMyProperty.Destroy;
 begin
   FMyCollection.Free;
   inherited;
+end;
+
+function TMyProperty.GetOwner: TPersistent;
+begin
+  Result := FOwner;
 end;
 
 procedure TMyProperty.SetMyCollection(Value: TMyCollection);
@@ -72,7 +81,7 @@ end;
 constructor TMyComponent.Create(AOwner: TComponent);
 begin
   inherited;
-  FMyProperty := TMyProperty.Create;
+  FMyProperty := TMyProperty.Create(Self);
   FMyCollection := TMyCollection.Create(Self, TMyItem);
 end;
 
