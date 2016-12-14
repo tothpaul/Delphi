@@ -97,7 +97,7 @@ begin
     Visible := True;
   end;
   Down := DroppedDown;
-  if Down <> (Items.Count > 1) or ((Items.Count = 1) and not AnsiSameText(Items[0],Text)) then
+  if Down <> ((Items.Count > 1) or ((Items.Count = 1) and not AnsiSameText(Items[0], Text))) then
   begin
     DroppedDown := not Down;
     if not Down then
