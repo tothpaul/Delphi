@@ -32,6 +32,7 @@ uses
   Winapi.Windows,
   System.SysUtils,
   System.Classes,
+  Vcl.Forms,
   Vcl.Controls,
   Vcl.StdCtrls,
   Vcl.ExtCtrls;
@@ -88,6 +89,7 @@ end;
 procedure TComboEdit.DoDropDown;
 var
   Down: Boolean;
+  Crs : THandle;
 begin
   DropDown;
   if Items.Count > 0 then
@@ -98,6 +100,8 @@ begin
   if Down <> (Items.Count > 1) or ((Items.Count = 1) and not AnsiSameText(Items[0],Text)) then
   begin
     DroppedDown := not Down;
+    if not Down then
+      Winapi.Windows.SetCursor(Screen.Cursors[crDefault]); // force the cursor to shows
   end;
 end;
 
