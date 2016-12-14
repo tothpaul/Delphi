@@ -30,6 +30,7 @@ interface
 
 uses
   Winapi.Windows,
+  Winapi.Messages,
   System.SysUtils,
   System.Classes,
   Vcl.Forms,
@@ -101,7 +102,9 @@ begin
   begin
     DroppedDown := not Down;
     if not Down then
-      Winapi.Windows.SetCursor(Screen.Cursors[crDefault]); // force the cursor to shows
+      //Winapi.Windows.SetCursor(Screen.Cursors[crDefault]); // force the cursor to shows
+	  // https://support.microsoft.com/en-us/kb/326254?
+	  SendMessage(Handle, WM_SETCURSOR, 0, 0);
   end;
 end;
 
