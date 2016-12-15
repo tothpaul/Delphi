@@ -1,6 +1,17 @@
 # Delphi
 Delphi source code by Execute SARL
+http://www.execute.fr
 
-Know bugs:
-- the selector is not hidden from the Form (see Gif image) 
-- the Top/Left properties are not related to the parent Panel...and I don't know how to fix this bug :/
+##Projects
+
+- CollectionTest
+> use a collection in a SubProperty
+- ComboEdit
+> use a hidden ComboBox as a Edit suggestion list
+- Demo1
+> GraphicPanels demo
+- Google Cardboard
+> Demonstration of a Cardboard like application under Delphi Berlin
+- GraphicPanels
+> a TGraphiControl that can be Parent of himself  
+> https://quality.embarcadero.com/browse/RSP-16543

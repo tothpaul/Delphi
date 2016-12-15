@@ -1,0 +1,72 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{393C6DC5-6D6E-4E50-B075-4C1C1819631D}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="1 StereoView\StereoView.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="2 LensEffect\LensEffect.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="3 NativeSensor\NativeSensor.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="4 FullDemo\FullDemo.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="StereoView">
+        <MSBuild Projects="1 StereoView\StereoView.dproj"/>
+    </Target>
+    <Target Name="StereoView:Clean">
+        <MSBuild Projects="1 StereoView\StereoView.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="StereoView:Make">
+        <MSBuild Projects="1 StereoView\StereoView.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="LensEffect">
+        <MSBuild Projects="2 LensEffect\LensEffect.dproj"/>
+    </Target>
+    <Target Name="LensEffect:Clean">
+        <MSBuild Projects="2 LensEffect\LensEffect.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="LensEffect:Make">
+        <MSBuild Projects="2 LensEffect\LensEffect.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="NativeSensor">
+        <MSBuild Projects="3 NativeSensor\NativeSensor.dproj"/>
+    </Target>
+    <Target Name="NativeSensor:Clean">
+        <MSBuild Projects="3 NativeSensor\NativeSensor.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="NativeSensor:Make">
+        <MSBuild Projects="3 NativeSensor\NativeSensor.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="FullDemo">
+        <MSBuild Projects="4 FullDemo\FullDemo.dproj"/>
+    </Target>
+    <Target Name="FullDemo:Clean">
+        <MSBuild Projects="4 FullDemo\FullDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FullDemo:Make">
+        <MSBuild Projects="4 FullDemo\FullDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="StereoView;LensEffect;NativeSensor;FullDemo"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="StereoView:Clean;LensEffect:Clean;NativeSensor:Clean;FullDemo:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="StereoView:Make;LensEffect:Make;NativeSensor:Make;FullDemo:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
