@@ -14,5 +14,7 @@ https://quality.embarcadero.com/browse/RSP-16543
 4. FullDemo
 > Put everything in a single application
 
+![screenshot](FullDemo.png)
+
 (c)2016 Execute SARL
 http://www.execute.fr
