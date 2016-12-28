@@ -10,6 +10,12 @@ http://www.execute.fr
 - ComboEdit
 > use a hidden ComboBox as a Edit suggestion list
 
+- CubeMan3D
+> OpenGL cross platform demo (Windows, MacOSX, Android, Linux)
+
+- DelphiTDS
+> Display informations from a TDS file
+
 - Demo1
 > GraphicPanels demo
 
