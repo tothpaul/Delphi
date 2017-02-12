@@ -1,6 +1,6 @@
 #AsciiShape
 
-an ASCII Shape editor for Delphi Berline
+an ASCII Shape editor for Delphi Berlin
 
 ![screenshot](AsciiShapeEditor.png)
 
