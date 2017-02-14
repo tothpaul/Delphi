@@ -1,7 +1,5 @@
 #Cardboard Demo for Delphi
 
-https://quality.embarcadero.com/browse/RSP-16543
-
 1. StereoView
 > Demonstration of the Stereo effect
 
