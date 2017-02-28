@@ -1,0 +1,151 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'Quinze Pendules'
+  ClientHeight = 715
+  ClientWidth = 1139
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnPaint = FormPaint
+  DesignerMasterStyle = 0
+  object Line1: TLine
+    LineType = Diagonal
+    Position.X = 512.000000000000000000
+    Position.Y = 10.000000000000000000
+    RotationCenter.X = 0.000000000000000000
+    RotationCenter.Y = 0.000000000000000000
+    Size.Width = 1.000000000000000000
+    Size.Height = 200.000000000000000000
+    Size.PlatformDefault = False
+    object Circle1: TCircle
+      Position.X = -15.000000000000000000
+      Position.Y = 200.000000000000000000
+      Size.Width = 30.000000000000000000
+      Size.Height = 30.000000000000000000
+      Size.PlatformDefault = False
+    end
+  end
+  object Viewport3D1: TViewport3D
+    Position.X = 688.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 440.000000000000000000
+    Size.Height = 480.000000000000000000
+    Size.PlatformDefault = False
+    object Light1: TLight
+      Color = claWhite
+      LightType = Directional
+      SpotCutOff = 180.000000000000000000
+      Position.X = -6.506007194519043000
+      Position.Y = -0.647683143615722600
+      RotationAngle.X = 324.825866699218800000
+      RotationAngle.Y = 39.976585388183600000
+      Width = 1.000000000000000000
+      Height = 1.000000000000000000
+      Depth = 1.000000000000000000
+      Quanternion = 
+        '(0.283953160047531,-0.325850665569305,-0.103284798562527,-0.8958' +
+        '36889743805)'
+    end
+    object Dummy2: TDummy
+      Position.Y = -7.000000000000000000
+      Position.Z = 10.000000000000000000
+      Width = 1.000000000000000000
+      Height = 1.000000000000000000
+      Depth = 1.000000000000000000
+      object Dummy1: TDummy
+        Width = 1.000000000000000000
+        Height = 1.000000000000000000
+        Depth = 1.000000000000000000
+        object Cylinder1: TCylinder
+          Position.Y = 5.000000000000000000
+          Width = 0.100000001490116100
+          Height = 10.000000000000000000
+          Depth = 0.100000001490116100
+          MaterialSource = LightMaterialSource1
+          object Sphere1: TSphere
+            Position.Y = 5.000000000000000000
+            Width = 1.000000000000000000
+            Height = 1.000000000000000000
+            Depth = 1.000000000000000000
+            MaterialSource = LightMaterialSource1
+          end
+        end
+      end
+      object FloatAnimation1: TFloatAnimation
+        Enabled = True
+        Duration = 15.000000000000000000
+        Loop = True
+        PropertyName = 'RotationAngle.Y'
+        StartValue = 0.000000000000000000
+        StopValue = 360.000000000000000000
+      end
+      object Cube1: TCube
+        Position.Y = -0.500000000000000000
+        Width = 1.000000000000000000
+        Height = 1.000000000000000000
+        Depth = 15.000000000000000000
+        MaterialSource = LightMaterialSource1
+      end
+    end
+  end
+  object Viewport3D2: TViewport3D
+    Position.X = 296.000000000000000000
+    Position.Y = 440.000000000000000000
+    Size.Width = 220.000000000000000000
+    Size.Height = 240.000000000000000000
+    Size.PlatformDefault = False
+    object ProxyObject1: TProxyObject
+      SourceObject = Dummy2
+      Position.Y = -5.000000000000000000
+      Scale.X = 0.500000000000000000
+      Scale.Y = 0.500000000000000000
+      Scale.Z = 0.500000000000000000
+      RotationAngle.X = 340.000000000000000000
+      Width = 1.000000000000000000
+      Height = 1.000000000000000000
+      Depth = 1.000000000000000000
+      Quanternion = 
+        '(-0.173648312687874,1.64934625956903E-8,9.32148367382979E-8,0.98' +
+        '4807789325714)'
+    end
+  end
+  object Viewport3D3: TViewport3D
+    Position.X = 40.000000000000000000
+    Position.Y = 440.000000000000000000
+    Size.Width = 220.000000000000000000
+    Size.Height = 240.000000000000000000
+    Size.PlatformDefault = False
+    object ProxyObject2: TProxyObject
+      SourceObject = Dummy2
+      Position.Y = -5.000000000000000000
+      Scale.X = 0.500000000000000000
+      Scale.Y = 0.500000000000000000
+      Scale.Z = 0.500000000000000000
+      RotationAngle.X = 340.000000000000000000
+      RotationAngle.Y = 90.000000000000000000
+      Width = 1.000000000000000000
+      Height = 1.000000000000000000
+      Depth = 1.000000000000000000
+      Quanternion = 
+        '(-0.122787959873676,0.696364283561706,-0.122787833213806,0.69636' +
+        '4223957062)'
+    end
+  end
+  object Timer1: TTimer
+    Interval = 40
+    OnTimer = Timer1Timer
+    Left = 224
+    Top = 280
+  end
+  object LightMaterialSource1: TLightMaterialSource
+    Diffuse = claSilver
+    Ambient = xFF202020
+    Emissive = claNull
+    Specular = xFF606060
+    Shininess = 30
+    Left = 696
+    Top = 64
+  end
+end
