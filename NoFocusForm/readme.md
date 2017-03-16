@@ -8,4 +8,4 @@ https://www.codeproject.com/Articles/71808/Creating-a-Form-That-Doesn-t-Take-Foc
 
 but it doesn't work very well :/
 
-:[delphi](DelphiVersion.png)
+![delphi](DelphiVersion.png)
