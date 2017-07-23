@@ -3,6 +3,8 @@ unit Execute.PNGLoader;
 {
    PNGLoader for Delphi Tokyo (c) 2017 Execute SARL
    http://www.execute.fr
+
+   version 1.0 - 2017.07.23
 }
 
 {
@@ -136,7 +138,7 @@ const
   COLOR_GRAYSCALE      = 0; // support 2017.07.23
   COLOR_RGB            = 2; // support 2017.07.23
   COLOR_PALETTE        = 3; // support 2017.07.23
-  COLOR_GRAYSCALEALPHA = 4;
+  COLOR_GRAYSCALEALPHA = 4; // support 2017.07.23
   COLOR_RGBA           = 6; // support 2017.07.22
 
  // Filter Mode
@@ -198,27 +200,6 @@ begin
   Value := Swap(Value) shl 16 + Swap(Value shr 16);
 end;
 
-type
-  TBitmapHelper = class helper for TBitmap
-    function BPP: Integer;
-    function LineSize: Integer;
-  end;
-
-function TBitmapHelper.BPP: Integer;
-begin
-  case PixelFormat of
-    pf24bit: Result := 3;
-    pf32bit: Result := 4;
-  else
-    raise Exception.Create('Internal error #1');
-  end;
-end;
-
-function TBitmapHelper.LineSize: Integer;
-begin
-  Result := {$IFDEF INCLUDE_FILTER}(Width - 1){$ELSE}Width{$ENDIF} * BPP;
-end;
-
 function Paeth(a, b, c: Byte): Byte;
 // a = left, b = above, c = upper left
 var
@@ -236,12 +217,8 @@ begin
 end;
 
 procedure RGB2BGR(AColor: Pointer; ACount: NativeInt);
-type
-  TRGB = record
-    r, g, b: Byte;
-  end;
 var
-  Color: ^TRGB absolute AColor;
+  Color: ^TRGBColor absolute AColor;
   Index: Integer;
   t: Byte;
 begin
