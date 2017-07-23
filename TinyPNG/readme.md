@@ -42,6 +42,7 @@ a PNG file looks like this
 	+----+
 
 After "Sign", each Chunk (including IHDR) uses the same format
+
 	+------+
 	| Size |  Number of bytes in the Data part (let the loader ignore unknown chunk)
 	+------+
@@ -55,6 +56,7 @@ After "Sign", each Chunk (including IHDR) uses the same format
 http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
 
 IDAT contains the Bitmap with an extra byte on top of each line for filtering
+
 	+------+--------------------------+
 	|Filter| Pixels of the first Line |
 	+------+--------------------------+
