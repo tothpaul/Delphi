@@ -26,5 +26,8 @@ http://www.execute.fr
 > a TGraphiControl that can be Parent of himself  
 > https://quality.embarcadero.com/browse/RSP-16543
 
+- Execute.XML.Tree
+> a tiny Unit to parse an XML file
+
 - TinyPNG
 > a tiny Unit to load PNG files
