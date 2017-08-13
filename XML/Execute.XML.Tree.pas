@@ -5,6 +5,7 @@ unit Execute.XML.Tree;
   http://www.execute.fr
 
   v1.0 - 2017-08-12
+	v1.1 - 2017-08-13 - error conditions for invalid XML string
 
   see Test() procedure below
 }
@@ -15,6 +16,12 @@ uses
   System.SysUtils;
 
 type
+  EXMLError = class(Exception)
+    Source : UTF8String;
+    Index  : Integer;
+    constructor Create(const AMsg, ASource: string; AIndex: Integer);
+  end;
+
   // reference to a String in the XML source
   TXMLString = record
     // pointer to the first character
@@ -86,6 +93,8 @@ type
     EndTag     : Boolean;
   // data between the opening tag and the closing one
     DataLen    : Integer;
+  // raise EXMLError
+    procedure Error(const Msg: string);
   // skip spaces
     procedure Spaces;
   // read a TagName
@@ -149,6 +158,16 @@ type
   end;
 
 implementation
+
+
+{ EXMLError }
+
+constructor EXMLError.Create(const AMsg, ASource: string; AIndex: Integer);
+begin
+  inherited Create(AMsg);
+  Source := ASource;
+  Index := AIndex;
+end;
 
 { TXMLString }
 
@@ -306,7 +325,7 @@ end;
 
 procedure TXMLTree.Spaces;
 begin
-  while Text[Position] in [#9, #10, #13, ' '] do Inc(Position);
+  while Text[Position] in [#0, #9, #10, #13, ' '] do Inc(Position);
 end;
 
 procedure TXMLTree.GetTag;
@@ -341,7 +360,7 @@ begin
     // read name
       TagName.Start := @Text[Position];
       TagName.Len := Position;
-      while not (Text[Position] in [#9, #10, #13, ' ', '/', '>']) do
+      while not (Text[Position] in [#0, #9, #10, #13, ' ', '/', '>']) do
       begin
         Inc(Position);
       end;
@@ -363,11 +382,13 @@ var
   Count: Integer;
   Start: Integer;
 begin
+  if EndTag then
+    Error('Unexpected closing tag /' + string(TagName.Value));
   Node.Name := TagName;
 // Attributes
   Spaces;
   Count := 0;
-  while not (Text[Position] in ['?', '/', '>']) do
+  while not (Text[Position] in [#0, '?', '/', '>']) do
   begin
     SetLength(Node.Attrs, Count + 1);
     GetAttr(Node.Attrs[Count]);
@@ -429,6 +450,8 @@ begin
   while not Skip(Seq) do
   begin
     Inc(Position);
+    if Position = Length(Text) then
+      Error('Unexpected end of XML');
   end;
   Result := Position - Result - Length(Seq);
 end;
@@ -451,7 +474,12 @@ end;
 procedure TXMLTree.Drop(const Str: UTF8String);
 begin
   if not Skip(Str) then
-    raise Exception.Create('XML parse error : expected ' + string(Str));
+    Error('XML parse error : expected ' + string(Str));
+end;
+
+procedure TXMLTree.Error(const Msg: string);
+begin
+  raise EXMLError.Create(Msg, Text, Position);
 end;
 
 function TXMLTree.Build(const AText: UTF8String): Boolean;
@@ -722,11 +750,37 @@ begin
 
   // "name" attribute of the 4th "code" node
   assert(t.XPathAttr('//code[4]/@name').value = 'dummy2');
+
+  // 2017-08-13, error conditions
+
+  s := 'not an valid XML string <root><dummy>wrong order</root></dummy>';
+  try
+    t.Build(s);
+  except
+    on e: EXMLError do
+      assert(e.Message = 'Unexpected closing tag /root');
+  end;
+
+  s := 'not a valid XML string <root>open node...';
+  try
+    t.Build(s);
+  except
+    on e: EXMLError do
+      assert(e.Message = 'Unexpected end of XML');
+  end;
+
+  s := 'not an XML string at all !';
+  try
+    t.Build(s);
+  except
+    on e: EXMLError do
+      assert(e.Message = 'Unexpected end of XML');
+  end;
 end;
+
 
 initialization
 {$IFDEF DEBUG}
   test;
 {$ENDIF}
 end.
-
