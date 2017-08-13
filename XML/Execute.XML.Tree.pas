@@ -5,7 +5,6 @@ unit Execute.XML.Tree;
   http://www.execute.fr
 
   v1.0 - 2017-08-12
-	v1.1 - 2017-08-13 - error conditions for invalid XML string
 
   see Test() procedure below
 }
@@ -449,9 +448,9 @@ begin
   Result := Position;
   while not Skip(Seq) do
   begin
-    Inc(Position);
     if Position = Length(Text) then
       Error('Unexpected end of XML');
+    Inc(Position);
   end;
   Result := Position - Result - Length(Seq);
 end;
