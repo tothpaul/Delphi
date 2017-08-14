@@ -5,6 +5,8 @@ unit Execute.XML.Tree;
   http://www.execute.fr
 
   v1.0 - 2017-08-12
+  v1.1 - 2017-08-13 error conditions
+  v1.2 - 2017-08-14 include TextNodes (name.len = 0, name = '')
 
   see Test() procedure below
 }
@@ -55,7 +57,7 @@ type
     Attrs   : TArray<TXMLAttribute>;
   // text inside the tag <tag>Text</tag>
     Text    : TXMLString;
-  // children XML Node of this one
+  // children XML Node of this one (including Text node)
     Children: TArray<TXMLNode>;
   // number of children
     function Length: Integer; inline;
@@ -97,7 +99,9 @@ type
   // skip spaces
     procedure Spaces;
   // read a TagName
-    procedure GetTag;
+    procedure GetTag(var Parent: TXMLNode);
+  // add a TextNode
+    procedure TextNode(var Parent: TXMLNode; Len: Integer);
   // read a TXMLNode
     procedure GetNode(var Node: TXMLNode);
   // read a TXMLAttribute
@@ -327,9 +331,10 @@ begin
   while Text[Position] in [#0, #9, #10, #13, ' '] do Inc(Position);
 end;
 
-procedure TXMLTree.GetTag;
+procedure TXMLTree.GetTag(var Parent: TXMLNode);
 var
   start: Integer;
+  len  : Integer;
   dots : Integer;
 begin
   TagName.Len := 0;
@@ -339,7 +344,10 @@ begin
   // reset DataLen if we have skipped comments etc...
     DataLen := Position - Start;
   // count chars until first "<"
-    Inc(DataLen, ReadUntil('<'));
+    len := ReadUntil('<');
+    if Len > 0 then
+      TextNode(Parent, len);
+    Inc(DataLen, len);
   // ignore <?...?> tags like <?xml version="1.0" encoding="UTF-8"?>
     if Skip('?') then
     begin
@@ -376,6 +384,29 @@ begin
   until TagName.Len > 0;
 end;
 
+procedure TXMLTree.TextNode(var Parent: TXMLNode; Len: Integer);
+var
+  Start: Integer;
+  Index: Integer;
+  Node : Integer;
+begin
+  Start := Position - len - 1; // Position is after '<'
+  for Index := Start to Start + Len - 1 do
+  begin
+    if not (Text[Index] in [#9, #10, #13, ' ']) then
+    begin
+      Node := Length(Parent.Children);
+      SetLength(Parent.Children, Node + 1);
+      Parent.Children[Node].Name.Start := @Text[Start];
+      Parent.Children[Node].Name.Len := 0;
+      Parent.Children[Node].Text.Start := @Text[Start];
+      Parent.Children[Node].Text.Len := Len;
+      Break;
+    end;
+  end;
+  // ignore empty nodes
+end;
+
 procedure TXMLTree.GetNode(var Node: TXMLNode);
 var
   Count: Integer;
@@ -401,16 +432,16 @@ begin
     Node.Text.Start := @Text[Position];
     // to compute Node.Text.Len
     Start := Position;
-    Count := 0;
-    GetTag;
+    GetTag(Node);
     while (EndTag = False) or (TagName.Equals(Node.Name) = False) do
     begin
+      Count := Length(Node.Children);
       SetLength(Node.Children, Count + 1);
       GetNode(Node.Children[Count]);
       Inc(Count);
       // adjust Text length
       Node.Text.Len := Position - Start;
-      GetTag();
+      GetTag(Node);
     end;
     // DataLen is between the last child and "</tag>"
     Inc(Node.Text.Len, DataLen);
@@ -483,9 +514,10 @@ end;
 
 function TXMLTree.Build(const AText: UTF8String): Boolean;
 begin
+  Finalize(Root);
   Text := AText;
   Position := 1;
-  GetTag;
+  GetTag(Root);
   GetNode(Root);
 end;
 
@@ -775,6 +807,31 @@ begin
     on e: EXMLError do
       assert(e.Message = 'Unexpected end of XML');
   end;
+
+  // 2017-08-18, text nodes
+
+  s := '<root>text node and <child>'#13'<empty/>'#9' '#10'</child> end text</root>';
+  t.Build(s);
+  assert(t.root.Length = 3);
+  // children[0] is a Text node
+  assert(t.root.children[0].name.value = '');
+  assert(t.root.children[0].text.value = 'text node and ');
+ // children[1] has only 1 child, no text node
+  assert(t.root.children[1].name.value = 'child');
+  assert(t.root.children[1].Length = 1);
+  assert(t.root.children[1].text.value = #13'<empty/>'#9' '#10);
+ // last node is a Text node
+  assert(t.root.children[2].name.value = '');
+  assert(t.root.children[2].text.value = ' end text');
+
+  // comments do split text nodes
+  s := '<root> begin <!-- ignored --> end </root>';
+  t.Build(s);
+  assert(t.root.Length = 2);
+  assert(t.root.children[0].name.len = 0);
+  assert(t.root.children[0].text.value = ' begin ');
+  assert(t.root.children[1].name.len = 0);
+  assert(t.root.children[1].text.value = ' end ');
 end;
 
 
