@@ -7,6 +7,7 @@ unit Execute.XML.Tree;
   v1.0 - 2017-08-12
   v1.1 - 2017-08-13 error conditions
   v1.2 - 2017-08-14 include TextNodes (name.len = 0, name = '')
+  v1.3 - 2017-08-18 added "xml" node, new XML Execptions and AnsiValue for non-UTF8 XML
 
   see Test() procedure below
 }
@@ -18,17 +19,31 @@ uses
 
 type
   EXMLError = class(Exception)
-    Source : UTF8String;
+    Source : PAnsiChar;
     Index  : Integer;
-    constructor Create(const AMsg, ASource: string; AIndex: Integer);
+    constructor Create(const AMsg: string; ASource: PAnsiChar; AIndex: Integer);
   end;
+
+  // not an XML source
+  EXMLNotXMLError = class(EXMLError);
+  // expected string not found (or unexpected string found)
+  EXMLExpectedStringNotFoundError = class(EXMLError)
+    Expected: string;
+    constructor Create(const AExpected: string; ASource: PAnsiChar; AIndex: Integer);
+  end;
+  // unexpected End of XML
+  EXMLEndOfXMLError = class(EXMLError);
+  // unexpected /tag
+  EXMLUnexpectedClosingTagError = class(EXMLError);
+  // expected /tag not found
+  EXMLExpectedClosingTagNotFoundError = class(EXMLError);
 
   // reference to a String in the XML source
   TXMLString = record
     // pointer to the first character
     Start: PAnsiChar;
     // length of the string
-    Len  : Byte;
+    Len  : Integer; // v1.3 byte => integer
     // search for a char in the string
     function Pos(Ch: AnsiChar): Integer;
     // compare the string with a given PAnsiChar
@@ -37,8 +52,12 @@ type
     function Equals(const AName: TXMLString): Boolean; inline;
     // compare the string with an UTF8String
     function Match(const AStr: UTF8String): Boolean; inline;
+    // compare the string with an UTF8String - case insensitive
+    function iMatch(const AStr: UTF8String): Boolean; inline;
     // return the value of the TXMLString, safe to call on a "nil" PXMLString
     function Value: UTF8String;
+    // return the value from a ISO XML file that is NOT UTF8 encoded !
+    function AnsiValue: AnsiString;
   end;
   PXMLString = ^TXMLString;
 
@@ -76,6 +95,8 @@ type
     function HasAttribute(const AName: UTF8String; var AAttr: PXMLString): Boolean;
   // return the value of Text, safe to call on a "nil" PXMLNode
     function Value: UTF8String; inline;
+    // return the value from a ISO XML file that is NOT UTF8 encoded !
+    function AnsiValue: AnsiString; inline;
   // properties
     property Child[const AName: UTF8String]: PXMLNode read GetChild; default;
     property Attribute[const AName: UTF8String]: PXMLString read GetAttribute;
@@ -85,7 +106,9 @@ type
   TXMLTree = record
   private
   // the XML source
-    Text       : UTF8String;
+    Text       : UTF8String; // keep the RefCount of the text > 0
+    PText      : PAnsiChar;
+    Size       : Integer;
   // position inside Text
     Position   : Integer;
   // readed TagName
@@ -94,29 +117,43 @@ type
     EndTag     : Boolean;
   // data between the opening tag and the closing one
     DataLen    : Integer;
-  // raise EXMLError
-    procedure Error(const Msg: string);
+  // make sure a node is empty
+    procedure ClearNode(var Node: TXMLNode);
+  // init things
+    procedure Init(AText: PAnsiChar; ALen: Integer);
   // skip spaces
     procedure Spaces;
   // read a TagName
-    procedure GetTag(var Parent: TXMLNode);
+    function GetTag(var Parent: TXMLNode): Boolean;
   // add a TextNode
     procedure TextNode(var Parent: TXMLNode; Len: Integer);
+  // read node Attributes
+    procedure GetAttrs(var Node: TXMLNode);
   // read a TXMLNode
     procedure GetNode(var Node: TXMLNode);
+  // read a child node
+    function ChildTag(var Node: TXMLNode): Boolean;
   // read a TXMLAttribute
     procedure GetAttr(var Attr: TXMLAttribute);
   // read until Seq and return the number of characters skiped
-    function ReadUntil(const Seq: UTF8String): Integer;
+    function ReadUntil(const Seq: UTF8String; var Skipped: Integer): Boolean;
+  // skip a char and raise an Exception at the end of XML
+    procedure DropChar;
   // skip a sequence of chars if possible
     function Skip(const Str: UTF8String): Boolean;
   // drop a sequence of chars or raise an Exception
     procedure Drop(const Str: UTF8String);
   public
+  // "<?xml version="1.0" encoding="..."?>
+    xml : TXMLNode; // to detect encoding
   // the Root node
     Root: TXMLNode;
   // parse AText and build the node Tree
-    function Build(const AText: UTF8String): Boolean;
+    procedure Build(const AText: UTF8String);
+  // build from a PAnsiChar and a char count
+    procedure BuildFrom(const AText: PAnsiChar; ALen: Integer);
+  // parse a multi root structure (special need)
+    procedure BuildMultiRoot(const AText: PAnsiChar; ALen: Integer);
   // retreive a Node at the given path
     function GetNodeAt(const APath: array of string): PXMLNode;
     function HasNodeAt(const APath: array of string; var ANode: PXMLNode): Boolean;
@@ -160,16 +197,50 @@ type
     procedure FindClose;
   end;
 
+function StrToIntDef(const Str: RawByteString; Default: Integer): Integer;
+
 implementation
 
+resourcestring
+  sUnexpectedEndOfXML   = 'Unexpected end of XML';
+  sUnexpectedClosingTag = 'Unexpected closing tag "/%s"';
+  sExpectedClosingTag   = 'Expected tag "/%s" not found';
+  sExpectedString       = 'Expected string not found';
+
+function StrToIntDef(const Str: RawByteString; Default: Integer): Integer;
+var
+  Index: Integer;
+  Value: Integer;
+begin
+  if Str = '' then
+    Exit(Default);
+  Result := 0;
+  for Index := 1 to Length(Str) do
+  begin
+    Value := Ord(Str[Index]) - Ord('0');
+    if Value in [0..9] then
+      Result := 10 * Result + Value
+    else
+      Exit(Default);
+  end;
+end;
 
 { EXMLError }
 
-constructor EXMLError.Create(const AMsg, ASource: string; AIndex: Integer);
+constructor EXMLError.Create(const AMsg: string; ASource: PAnsiChar; AIndex: Integer);
 begin
   inherited Create(AMsg);
   Source := ASource;
   Index := AIndex;
+end;
+
+{ EXMLExpectedStringNotFoundError }
+
+constructor EXMLExpectedStringNotFoundError.Create(const AExpected: string;
+  ASource: PAnsiChar; AIndex: Integer);
+begin
+  inherited Create(sExpectedString, ASource, AIndex);
+  Expected := AExpected;
 end;
 
 { TXMLString }
@@ -209,7 +280,34 @@ begin
   Result := Compare(Pointer(AStr), Length(AStr));
 end;
 
+function TXMLString.iMatch(const AStr: UTF8String): Boolean;
+var
+  Index: Integer;
+  Src  : PAnsiChar;
+begin
+  Result := False;
+  if Length(AStr) <> Len then
+    Exit;
+  Src := PAnsiChar(AStr);
+  for Index := 0 to Len - 1 do
+  begin
+   if UpCase(Src[Index]) <> Start[Index] then
+     Exit;
+  end;
+  Result := True;
+end;
+
 function TXMLString.Value: UTF8String;
+begin
+  if (@Self = nil) or (Len = 0) then
+    Result := ''
+  else begin
+    SetLength(Result, Len);
+    Move(Start^, Result[1], Len);
+  end;
+end;
+
+function TXMLString.AnsiValue: AnsiString;
 begin
   if (@Self = nil) or (Len = 0) then
     Result := ''
@@ -324,14 +422,23 @@ begin
     Result := Text.Value;
 end;
 
+function TXMLNode.AnsiValue: AnsiString;
+begin
+  if @Self = nil then
+    Result := ''
+  else
+    Result := Text.AnsiValue;
+end;
+
 { TXMLTree }
 
 procedure TXMLTree.Spaces;
 begin
-  while Text[Position] in [#0, #9, #10, #13, ' '] do Inc(Position);
+  while (PText[Position] in [#0, #9, #10, #13, ' ']) do
+    DropChar;
 end;
 
-procedure TXMLTree.GetTag(var Parent: TXMLNode);
+function TXMLTree.GetTag(var Parent: TXMLNode): Boolean;
 var
   start: Integer;
   len  : Integer;
@@ -344,15 +451,28 @@ begin
   // reset DataLen if we have skipped comments etc...
     DataLen := Position - Start;
   // count chars until first "<"
-    len := ReadUntil('<');
+    Result := ReadUntil('<', len);
     if Len > 0 then
       TextNode(Parent, len);
     Inc(DataLen, len);
-  // ignore <?...?> tags like <?xml version="1.0" encoding="UTF-8"?>
+    if Result = False then
+      Exit;
+  // i<?...?> tags
     if Skip('?') then
     begin
+      if Skip('xml ') then // <?xml version="1.0" encoding="UTF-8"?>
+      begin
+       // specify TagName
+        TagName.Start := @PText[Position - 5];
+        TagName.Len := 4;
+       // set Name and read Attributes
+        GetAttrs(xml);
+       // reset TagName for the repeat loop
+        TagName.Len := 0;
+      end;
+      // read until end of tag
       while not Skip('?>') do
-        Inc(Position);
+        DropChar;
     end else
   // ignore comments like <!-- comment -->
     if Skip('!--') then
@@ -361,15 +481,15 @@ begin
         Inc(Position);
     end else begin
     // skip "/" in </tag>
-      EndTag := Text[Position] = '/';
+      EndTag := PText[Position] = '/';
       if EndTag then
         Inc(Position);
     // read name
-      TagName.Start := @Text[Position];
+      TagName.Start := @PText[Position];
       TagName.Len := Position;
-      while not (Text[Position] in [#0, #9, #10, #13, ' ', '/', '>']) do
+      while (not (PText[Position] in [#9, #10, #13, ' ', '/', '>'])) do
       begin
-        Inc(Position);
+        DropChar;
       end;
     // compute TagName len
       TagName.Len := Position - TagName.Len;
@@ -393,13 +513,13 @@ begin
   Start := Position - len - 1; // Position is after '<'
   for Index := Start to Start + Len - 1 do
   begin
-    if not (Text[Index] in [#9, #10, #13, ' ']) then
+    if not (PText[Index] in [#9, #10, #13, ' ']) then
     begin
       Node := Length(Parent.Children);
       SetLength(Parent.Children, Node + 1);
-      Parent.Children[Node].Name.Start := @Text[Start];
+      Parent.Children[Node].Name.Start := nil;
       Parent.Children[Node].Name.Len := 0;
-      Parent.Children[Node].Text.Start := @Text[Start];
+      Parent.Children[Node].Text.Start := @PText[Start];
       Parent.Children[Node].Text.Len := Len;
       Break;
     end;
@@ -407,41 +527,47 @@ begin
   // ignore empty nodes
 end;
 
-procedure TXMLTree.GetNode(var Node: TXMLNode);
+procedure TXMLTree.GetAttrs(var Node: TXMLNode);
 var
   Count: Integer;
-  Start: Integer;
 begin
-  if EndTag then
-    Error('Unexpected closing tag /' + string(TagName.Value));
+// set Name
   Node.Name := TagName;
 // Attributes
   Spaces;
   Count := 0;
-  while not (Text[Position] in [#0, '?', '/', '>']) do
+  while (Position < Size) and (not (PText[Position] in ['?', '/', '>'])) do
   begin
     SetLength(Node.Attrs, Count + 1);
     GetAttr(Node.Attrs[Count]);
     Inc(Count);
   end;
   Node.Text.Len := 0;
+end;
+
+procedure TXMLTree.GetNode(var Node: TXMLNode);
+var
+  Start: Integer;
+  Count: Integer;
+begin
+  if EndTag then
+    raise EXMLUnexpectedClosingTagError.Create(Format(sUnexpectedClosingTag, [string(TagName.Value)]), PText, Position - TagName.Len - 1);
+// set Name and read Attributes
+  GetAttrs(Node);
 // Empty node
   if not Skip('/>') then
   begin
     Drop('>');
-    Node.Text.Start := @Text[Position];
+    Node.Text.Start := @PText[Position];
     // to compute Node.Text.Len
     Start := Position;
-    GetTag(Node);
-    while (EndTag = False) or (TagName.Equals(Node.Name) = False) do
+    while ChildTag(Node) do
     begin
       Count := Length(Node.Children);
       SetLength(Node.Children, Count + 1);
       GetNode(Node.Children[Count]);
-      Inc(Count);
       // adjust Text length
       Node.Text.Len := Position - Start;
-      GetTag(Node);
     end;
     // DataLen is between the last child and "</tag>"
     Inc(Node.Text.Len, DataLen);
@@ -449,41 +575,63 @@ begin
   end;
 end;
 
+function TXMLTree.ChildTag(var Node: TXMLNode): Boolean;
+begin
+  if GetTag(Node) = False then
+    raise EXMLExpectedClosingTagNotFoundError.Create(Format(sExpectedClosingTag, [string(Node.Name.value)]), PText, (Node.Name.Start - PText));
+  Result := (EndTag = False) or (TagName.Equals(Node.Name) = False);
+end;
+
 procedure TXMLTree.GetAttr(var Attr: TXMLAttribute);
 var
   Quote: AnsiChar;
 begin
 // Attribute name
-  Attr.Name.Start := @Text[Position];
+  Attr.Name.Start := @PText[Position];
   Attr.Name.Len := Position;
-  while not(Text[Position] in [#9, #10, #13, ' ', '=']) do
+  while not(PText[Position] in [#9, #10, #13, ' ', '=']) do
   begin
-    Inc(Position);
+    DropChar;
   end;
   Attr.Name.Len := Position - Attr.Name.Len;
 // name =
-  while Text[Position] <> '=' do Inc(Position);
-  Inc(Position);
+  Spaces;
+  Drop('=');
   Spaces;
 // "value" or 'value'
-  Quote := Text[Position];
-  Inc(Position);
-  Attr.Value.Start := @Text[Position];
-  Attr.Value.Len := ReadUntil(Quote);
+  Quote := PText[Position];
+  if Quote in ['"', ''''] then
+    DropChar
+  else
+    Drop('"');
+  Attr.Value.Start := @PText[Position];
+  if ReadUntil(Quote, Attr.Value.Len) = False then
+    raise EXMLEndofXMLError.Create(sUnexpectedEndOfXML, PText, Position);
 // prepare for next attribute
   Spaces;
 end;
 
-function TXMLTree.ReadUntil(const Seq: UTF8String): Integer;
+function TXMLTree.ReadUntil(const Seq: UTF8String; var Skipped: Integer): Boolean;
 begin
-  Result := Position;
+  Skipped := Position;
+  Result := True;
   while not Skip(Seq) do
   begin
-    if Position = Length(Text) then
-      Error('Unexpected end of XML');
+    if Position = Size then
+    begin
+      Result := False;
+      Break;
+    end;
     Inc(Position);
   end;
-  Result := Position - Result - Length(Seq);
+  Skipped := Position - Skipped - Length(Seq);
+end;
+
+procedure TXMLTree.DropChar;
+begin
+  if Position = Size then
+    raise EXMLEndOfXMLError.Create(sUnexpectedEndOfXML, PText, Position);
+  Inc(Position);
 end;
 
 function TXMLTree.Skip(const Str: UTF8String): Boolean;
@@ -492,45 +640,80 @@ var
   Index: Integer;
 begin
   Len := Length(Str);
-  for Index := 0 to Length(Str) - 1 do
+  if Position + Len > Size then
+    Exit(False);
+  for Index := 0 to Len - 1 do
   begin
-    if Text[Position + Index] <> Str[Index + 1] then
+    if PText[Position + Index] <> Str[Index + 1] then
       Exit(False);
   end;
-  Inc(Position, Length(Str));
+  Inc(Position, Len);
   Result := True;
 end;
 
 procedure TXMLTree.Drop(const Str: UTF8String);
 begin
   if not Skip(Str) then
-    Error('XML parse error : expected ' + string(Str));
+    raise EXMLExpectedStringNotFoundError.Create(Str, PText, Position);
 end;
 
-procedure TXMLTree.Error(const Msg: string);
+procedure TXMLTree.ClearNode(var Node: TXMLNode);
 begin
-  raise EXMLError.Create(Msg, Text, Position);
+  Node.Attrs := nil;
+  Node.Children := nil;
+  FillChar(Node, SizeOf(TXMLNode), 0);
 end;
 
-function TXMLTree.Build(const AText: UTF8String): Boolean;
+procedure TXMLTree.Init(AText: PAnsiChar; ALen: Integer);
 begin
-  Finalize(Root);
-  Text := AText;
-  Position := 1;
-  GetTag(Root);
-  GetNode(Root);
+  Text := ''; // release previous source
+  ClearNode(xml);
+  ClearNode(Root);
+  PText := AText;
+  Size := ALen;
+  Position := 0;
+end;
+
+procedure TXMLTree.Build(const AText: UTF8String);
+begin
+  BuildFrom(Pointer(AText), Length(AText));
+  Text := AText; // RefCount
+end;
+
+procedure TXMLTree.BuildFrom(const AText: PAnsiChar; ALen: Integer);
+begin
+  Init(AText, ALen);
+  if GetTag(Root) then
+    GetNode(Root)
+  else
+    raise EXMLNotXMLError.Create('Not an XML string', PText, Position);
+end;
+
+procedure TXMLTree.BuildMultiRoot(const AText: PAnsiChar; ALen: Integer);
+var
+  Count: Integer;
+begin
+  Init(AText, ALen);
+  Root.Text.Start := PText;
+  Root.Text.Len := Size;
+  while GetTag(Root) do
+  begin
+    Count := Length(Root.Children);
+    SetLength(Root.Children, Count + 1);
+    GetNode(Root.Children[Count]);
+  end;
 end;
 
 function TXMLTree.GetNodeAt(const APath: array of string): PXMLNode;
 var
   Index: Integer;
 begin
-  if (Length(APath) = 0) or (Root.Name.Match(APath[0]) = False) then
+  if (Length(APath) = 0) or (Root.Name.Match(UTF8String(APath[0])) = False) then
     Exit(nil);
   Result := @Root;
   for Index := 1 to Length(APath) - 1 do
   begin
-    if Result.HasChild(APath[Index], Result) = False then
+    if Result.HasChild(UTF8String(APath[Index]), Result) = False then
       Exit;
   end;
 end;
@@ -631,7 +814,7 @@ var
 begin
   if APath = '' then
     Exit(nil);
-  Index := Pos('@', APath);
+  Index := Pos(UTF8String('@'), APath);
   if Index = 0 then
     Exit(nil);
   if Index = 1 then
@@ -706,11 +889,14 @@ begin
 end;
 
 procedure test;
+type
+  Ansi1252 = type AnsiString(1252);
 var
   s: UTF8String;
   t: TXMLTree;
   n: PXMLNode;
   r: TXMLSearch;
+  a: Ansi1252;
 begin
   s := '<?xml version="1.0" encoding="UTF-8"?>'
      + '<root id="test">'
@@ -788,24 +974,27 @@ begin
   try
     t.Build(s);
   except
-    on e: EXMLError do
-      assert(e.Message = 'Unexpected closing tag /root');
+    on e: EXMLUnexpectedClosingTagError do
+    begin
+      assert(e.Message = 'Unexpected closing tag "/root"');
+      assert(Copy(string(e.source), e.Index + 1, 5) = '/root');
+    end;
   end;
 
   s := 'not a valid XML string <root>open node...';
   try
     t.Build(s);
   except
-    on e: EXMLError do
-      assert(e.Message = 'Unexpected end of XML');
+    on e: EXMLExpectedClosingTagNotFoundError do
+      assert(e.Message = 'Expected tag "/root" not found');
   end;
 
   s := 'not an XML string at all !';
   try
     t.Build(s);
   except
-    on e: EXMLError do
-      assert(e.Message = 'Unexpected end of XML');
+    on e: EXMLNotXMLError do
+      assert(e.Message = 'Not an XML string');
   end;
 
   // 2017-08-18, text nodes
@@ -832,7 +1021,45 @@ begin
   assert(t.root.children[0].text.value = ' begin ');
   assert(t.root.children[1].name.len = 0);
   assert(t.root.children[1].text.value = ' end ');
+
+  // 2017-08-18 - new exception classes, xml node, .AnsiValue for iso encoded XML source
+
+  // NB: "a" is an AnsiString(1252) not an UTF8STring !
+  a := '<?xml version="1.0" encoding="ISO-8859-1"?><root><summer>été</summer></root>';
+  t.BuildFrom(Pointer(a), Length(a));
+  assert(t.xml.Attribute['encoding'].Value = 'ISO-8859-1');
+  assert(t.Root['summer'].AnsiValue = 'été');
+
+  // AnsiValue on UTF8
+  s := '<?xml version="1.0" encoding="utf-8"?><root><summer>été</summer></root>';
+  t.BuildFrom(Pointer(s), Length(s));
+  assert(t.xml.Attribute['encoding'].Value = 'utf-8');
+  assert(t.Root['summer'].AnsiValue = 'Ã©tÃ©');
+
+  s := '<root attr=''wrong">';
+  try
+    t.Build(s);
+  except
+    on e: EXMLEndOfXMLError do
+    begin
+      assert(e.message = 'Unexpected end of XML');
+    end;
+  end;
+
+  s := '<root attr=wrong>';
+  try
+    t.Build(s);
+  except
+    on e: EXMLExpectedStringNotFoundError do
+    begin
+      assert(e.Message = 'Expected string not found');
+      assert(e.Expected = '"');
+      assert(e.source[e.index] = 'w');
+    end;
+  end;
+
 end;
+
 
 
 initialization
