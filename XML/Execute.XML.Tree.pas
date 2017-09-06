@@ -8,6 +8,7 @@ unit Execute.XML.Tree;
   v1.1 - 2017-08-13 error conditions
   v1.2 - 2017-08-14 include TextNodes (name.len = 0, name = '')
   v1.3 - 2017-08-18 added "xml" node, new XML Execptions and AnsiValue for non-UTF8 XML
+  v1.4 - 2017-09-06 improved XPath support
 
   see Test() procedure below
 }
@@ -22,6 +23,12 @@ type
     Source : PAnsiChar;
     Index  : Integer;
     constructor Create(const AMsg: string; ASource: PAnsiChar; AIndex: Integer);
+  end;
+
+  EXPathError = class(Exception)
+    Path  : UTF8String;
+    Index : Integer;
+    constructor Create(const AMsg: string; APath: UTF8String; AIndex: Integer);
   end;
 
   // not an XML source
@@ -70,6 +77,26 @@ type
   // an XML Node is defined by a pair of tag : <tag>..</tag> - or a single tag <tag/>
   PXMLNode = ^TXMLNode;
   TXMLNode = record
+  private
+    type
+      TSelector = record
+        Path : UTF8String;
+        Index: Integer;
+        Name : UTF8String;
+        Attr : UTF8String;
+        Value: UTF8String;
+        Nth  : Integer;
+        Any  : Boolean;
+        function Skip(c: AnsiChar): Boolean;
+        procedure Drop(c: AnsiChar);
+        procedure NextChar;
+        procedure Next(const Source: TSelector);
+        function Match(var Node: PXMLNode): Boolean;
+        function EndOfPath: Boolean;
+      end;
+    function Walk(var ASelector: TSelector; var ANode: PXMLNode): Boolean;
+    function Select(var ASelector: TSelector; var ANode: PXMLNode): Boolean;
+  public
   // name of the tag
     Name    : TXMLString;
   // attributs of the tag <tag name="value"...>
@@ -93,6 +120,9 @@ type
   // retreive an attribute by it's name
     function GetAttribute(const AName: UTF8String): PXMLString;
     function HasAttribute(const AName: UTF8String; var AAttr: PXMLString): Boolean;
+  // XPath syntax
+  // for XPathAttr use XPathNode('...').Attribute['name']
+    function XPathNode(const APath: UTF8String): PXMLNode;
   // return the value of Text, safe to call on a "nil" PXMLNode
     function Value: UTF8String; inline;
     // return the value from a ISO XML file that is NOT UTF8 encoded !
@@ -162,9 +192,11 @@ type
   //   parent/child : child node
   //   child[x]     : x-nth "child" node
   //   [x]          : x-nth children
-  // todo (or not todo) :
+  // added in version 1.4
   //   child[@name]       : "child" with a "name" attribute
   //   child[@name=value] : "child" with a "name" attribute and a value "value"
+  //   child[x@name=value]: nth "child" with a "name" attribute and a value "value"
+  // todo (or not todo) :
   //   child[@*]          : "child" with at least one attribute
   //   child[last()]      : last "child"
   //   child[last()-1]    : last but one "child"
@@ -225,12 +257,209 @@ begin
   end;
 end;
 
+{ TXMLNode.TSelector }
+
+function TXMLNode.TSelector.Skip(c: AnsiChar): Boolean;
+begin
+  Result := Path[Index] = c;
+  if Result then
+    Inc(Index);
+end;
+
+procedure TXMLNode.TSelector.Drop(c: AnsiChar);
+begin
+  if not Skip(c) then
+    raise EXPathError.Create('Unpexected character', Path, Index);
+end;
+
+procedure TXMLNode.TSelector.NextChar;
+begin
+  if Index >= Length(Path) then
+    raise EXPathError.Create('Unexpected end of path', Path, Index);
+  Inc(Index);
+end;
+
+function TXMLNode.TSelector.EndOfPath: Boolean;
+begin
+  Result := Index > Length(Path);
+end;
+
+function TXMLNode.TSelector.Match(var Node: PXMLNode): Boolean;
+var
+  Str: PXMLString;
+begin
+  if Any then
+    Result := Node.Walk(Self, Node)
+  else begin
+    Result := False;
+    if (Name <> '') and not Node.Name.Match(Name) then
+      Exit;
+    if (Attr <> '') then
+    begin
+      Str := Node.Attribute[Attr];
+      if Str = nil then
+        Exit;
+      if (Value <> '') and not Str.Match(Value) then
+        Exit;
+    end;
+    if (Nth = -1) or (Nth = 1) then
+    begin
+      Result := Node.Walk(Self, Node);
+      Exit;
+    end;
+    if Nth > 0 then
+    begin
+      Dec(Nth);
+    end;
+  end;
+end;
+
+procedure TXMLNode.TSelector.Next(const Source: TSelector);
+var
+  Start: Integer;
+begin
+  Path := Source.PAth;
+  Index := Source.Index;
+  Start := Index;
+  Nth := -1;
+  Attr := '';
+  Value := '';
+  Any := False; // allows Next(Self)
+  if Skip('/') then
+  begin
+    if Source.Any then
+      raise EXPathError.Create('Invalid Path', Path, Index);
+    Any := True;
+    Exit;
+  end;
+  while (Index <= Length(Path)) and not (Path[Index] in ['[', '/']) do
+  begin
+    Inc(Index);
+  end;
+  Name := Copy(Path, Start, Index - Start);
+  if Path[Index] = '[' then
+  begin
+    Inc(Index);
+    if Path[Index] <> '@' then
+    begin
+      Nth := 0;
+      while Path[Index] in ['0'..'9'] do
+      begin
+        Nth := 10 * Nth + Ord(Path[Index]) - Ord('0');
+        Inc(Index);
+      end;
+    end;
+    if Path[Index] = '@' then
+    begin
+      Inc(Index);
+      Start := Index;
+      while not (Path[Index] in ['=', ']']) do
+      begin
+        NextChar;
+      end;
+      Attr := Copy(Path, Start, Index - Start);
+      if Path[Index] = '=' then
+      begin
+        Inc(Index);
+        Start := Index;
+        while Path[Index] <> ']' do
+        begin
+          NextChar;
+        end;
+        Value := Copy(Path, Start, Index - Start);
+      end;
+    end;
+    Drop(']');
+  end;
+  if Index < Length(Path) then
+  begin
+    Drop('/');
+  end;
+end;
+
+procedure GetName(const APath: UTF8String; var Index: Integer; var Name, Attr, Value: UTF8STring; var Nth: Integer);
+var
+  Start: Integer;
+
+  procedure Drop(c: AnsiChar);
+  begin
+    if APath[Index] <> c then
+      raise EXPathError.Create('Unpexected character', APath, Index);
+    Inc(Index);
+  end;
+
+  procedure NextChar;
+  begin
+    if Index = Length(APath) then
+      raise EXPathError.Create('Unexpected end of path', APath, Index);
+    Inc(Index);
+  end;
+
+begin
+  Start := Index;
+  Nth := -1;
+  Attr := '';
+  Value := '';
+  while (Index <= Length(APath)) and not (APath[Index] in ['[', '/']) do
+  begin
+    Inc(Index);
+  end;
+  Name := Copy(APath, Start, Index - Start);
+  if APath[Index] = '[' then
+  begin
+    Inc(Index);
+    if APath[Index] <> '@' then
+    begin
+      Nth := 0;
+      while APath[Index] in ['0'..'9'] do
+      begin
+        Nth := 10 * Nth + Ord(APath[Index]) - Ord('0');
+        Inc(Index);
+      end;
+    end;
+    if APath[Index] = '@' then
+    begin
+      Inc(Index);
+      Start := Index;
+      while not (APath[Index] in ['=', ']']) do
+      begin
+        NextChar;
+      end;
+      Attr := Copy(APath, Start, Index - Start);
+      if APath[Index] = '=' then
+      begin
+        Inc(Index);
+        Start := Index;
+        while APath[Index] <> ']' do
+        begin
+          NextChar;
+        end;
+        Value := Copy(APath, Start, Index - Start);
+      end;
+    end;
+    Drop(']');
+  end;
+  if Index < Length(APath) then
+  begin
+    Drop('/');
+  end;
+end;
+
 { EXMLError }
 
 constructor EXMLError.Create(const AMsg: string; ASource: PAnsiChar; AIndex: Integer);
 begin
   inherited Create(AMsg);
   Source := ASource;
+  Index := AIndex;
+end;
+
+{ EXPathError }
+
+constructor EXPathError.Create(const AMsg: string; APath: UTF8String; AIndex: Integer);
+begin
+  inherited Create(AMsg);
+  Path := APath;
   Index := AIndex;
 end;
 
@@ -420,6 +649,62 @@ begin
     Result := ''
   else
     Result := Text.Value;
+end;
+
+function TXMLNode.Walk(var ASelector: TSelector; var ANode: PXMLNode): Boolean;
+var
+  Index   : Integer;
+  Selector: TSelector;
+begin
+  if ASelector.EndOfPath then
+    Exit(ANode <> nil);
+  Selector.Next(ASelector);
+  if ASelector.Any then
+  begin
+    Result := ANode.Select(Selector, ANode);
+  end else begin
+    for Index := 0 to Length - 1 do
+    begin
+      ANode := @Children[Index];
+      if Selector.Match(ANode) then
+        Exit(True);
+    end;
+    Result := False;
+  end;
+end;
+
+function TXMLNode.Select(var ASelector: TSelector; var ANode: PXMLNode): Boolean;
+var
+  Index: Integer;
+begin
+  if ASelector.Match(ANode) then
+    Exit(True);
+  for Index := 0 to Length - 1 do
+  begin
+    ANode := @Children[Index];
+    if ANode.Select(ASelector, ANode) then
+      Exit(True);
+  end;
+  Result := False;
+end;
+
+function TXMLNode.XPathNode(const APath: UTF8String): PXMLNode;
+var
+  Selector: TSelector;
+begin
+  if @Self = nil then
+    Exit(nil);
+
+  if APath = '' then
+    Exit(@Self);
+
+  Selector.Path := APath;
+  Selector.Index := 1;
+  Selector.Skip('/');
+  Result := @Self;
+  if not Selector.Match(Result) then
+//  if Walk(Selector, Result) = False then
+    Result := nil;
 end;
 
 function TXMLNode.AnsiValue: AnsiString;
@@ -724,87 +1009,23 @@ begin
   Result := ANode <> nil;
 end;
 
-procedure GetName(const APath: UTF8String; var Index: Integer; var Name: UTF8STring; var Nth: Integer);
-var
-  Start: Integer;
-begin
-  Start := Index;
-  Nth := -1;
-  while (Index <= Length(APath)) and (APath[Index] <> '/') do
-  begin
-    if APath[Index] = '[' then
-    begin
-      Nth := 0;
-      Break;
-    end;
-    Inc(Index);
-  end;
-  Name := Copy(APath, Start, Index - Start);
-  if APath[Index] = '[' then
-  begin
-    Inc(Index);
-    while APath[Index] in ['0'..'9'] do
-    begin
-      Nth := 10 * Nth + Ord(APath[Index]) - Ord('0');
-      Inc(Index);
-    end;
-    if APath[Index] = ']' then
-      Inc(Index);
-  end;
-  Inc(Index);
-end;
-
 function TXMLTree.XPathNode(const APath: UTF8String): PXMLNode;
 var
-  Index: Integer;
-  Any  : Boolean;
-  Name : UTF8String;
-  Nth  : Integer;
+  Selector: TXMLNode.TSelector;
 begin
-  if APath = '' then
-    Exit(nil);
-
   Result := nil;
-  Index := 1;
-  if APath[1] = '/' then
-    Inc(Index);
 
-  GetName(APath, Index, Name, Nth);
-  if Name = '' then
-  begin
-    if Nth > 0 then
-      Exit;
-    Any := True;
-  end else begin
-    if  Root.Name.Match(Name) = False then
-      Exit;
-    Any := False;
-  end;
+  if APath = '' then
+    Exit;
+
+  Selector.Path := APath;
+  Selector.Index := 1;
+  Selector.Skip('/');
+  Selector.Next(Selector);
 
   Result := @Root;
-  while (Result <> nil) and (Index < Length(APath)) do
-  begin
-    GetName(APath, Index, Name, Nth);
-    if Name = '' then
-    begin
-      if Nth > 0 then
-      begin
-        if Nth > Result.Length then
-          Result := nil
-        else
-          Result := @Result.Children[Nth - 1]
-      end else
-        Any := True;
-    end else begin
-      if Any then
-      begin
-        Result := Result.Search(Name, Nth);
-        Any := False;
-      end else begin
-        Result := Result.GetNthChild(Name, Nth);
-      end;
-    end;
-  end;
+  if not Selector.Match(Result) then
+    Result := nil;
 end;
 
 function TXMLTree.XPathAttr(const APath: UTF8String): PXMLString;
@@ -1058,12 +1279,23 @@ begin
     end;
   end;
 
+  // 2017-09-05: Node.XPathNode
+  s := '<root><child><test>ici</test></child><child><test flag="1">there</test><test flag="2">2nd</test></child><child><subchild value="yes">found</subchild><test flag="value">three</test></child></root>';
+  t.Build(s);
+  Assert(t.Root.XPathNode('child').Text.Value = '<test>ici</test>');
+  Assert(t.Root.XPathNode('child/test').Text.Value = 'ici');
+  Assert(t.Root.XPathNode('child/test[2]').Text.Value = '2nd');
+  Assert(t.Root.XPathNode('child/test[@flag]').Text.Value = 'there');
+  Assert(t.Root.XPathNode('child/test[2@flag]').Text.Value = '2nd');
+  Assert(t.Root.XPathNode('child/test[@flag=value]').Text.Value = 'three');
+  Assert(t.Root.XPathNode('child/subchild').Text.Value = 'found');
+
 end;
 
 
 
 initialization
 {$IFDEF DEBUG}
-  test;
+//  test;
 {$ENDIF}
 end.
