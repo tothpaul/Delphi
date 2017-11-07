@@ -1506,7 +1506,7 @@ begin
     Exit(scRet);
 
   // Build the request - must be < maximum message size
-  sprintf( PAnsiChar(@pbIoBuffer[Sizes.cbHeader]), 'EHLO '#13#10 ); // message begins after the header
+  sprintf( PAnsiChar(@pbIoBuffer[Sizes.cbHeader]), 'EHLO smtp.gmail.com'#13#10 ); // message begins after the header
 
   // Send a request.
   cbData := EncryptSend( Socket, phContext, pbIoBuffer, Sizes );
@@ -1522,7 +1522,7 @@ begin
     Exit(scRet);
 
   // Build the request - must be < maximum message size
-  sprintf( PAnsiChar(@pbIoBuffer[Sizes.cbHeader]), 'QUIT '#13#10 ); // message begins after the header
+  sprintf( PAnsiChar(@pbIoBuffer[Sizes.cbHeader]), 'QUIT'#13#10 ); // message begins after the header
 
   // Send a request.
   cbData := EncryptSend( Socket, phContext, pbIoBuffer, Sizes );

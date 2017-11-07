@@ -212,20 +212,36 @@ type
     cbSize: DWORD;
     TrustStatus: CERT_TRUST_STATUS;
     cElement: DWORD;
-    rgpElement: PCERT_CHAIN_ELEMENT;
+    rgpElement: ^PCERT_CHAIN_ELEMENT;
     pTrustListInfo: PCERT_TRUST_LIST_INFO;
   end;
 
   PCERT_SIMPLE_CHAIN = ^CERT_SIMPLE_CHAIN;
 
-  CERT_CHAIN_CONTEXT = record
+  PCCERT_CHAIN_CONTEXT = ^CERT_CHAIN_CONTEXT;
+
+  CERT_CHAIN_CONTEXT = record // 56 bytes
     cbSize: DWORD;
     TrustStatus: CERT_TRUST_STATUS;
     cChain: DWORD;
-    rgpChain: PCERT_SIMPLE_CHAIN;
+    rgpChain   : ^PCERT_SIMPLE_CHAIN; // warning ! ^^CERT_SIMPLE_CHAIN
+    // Following is returned when CERT_CHAIN_RETURN_LOWER_QUALITY_CONTEXTS
+    // is set in dwFlags
+    cLowerQualityChainContext: DWORD;
+    rgpLowerQualityChainContext: ^PCCERT_CHAIN_CONTEXT;
+    // fHasRevocationFreshnessTime is only set if we are able to retrieve
+    // revocation information for all elements checked for revocation.
+    // For a CRL its CurrentTime - ThisUpdate.
+    //
+    // dwRevocationFreshnessTime is the largest time across all elements
+    // checked.
+    fHasRevocationFreshnessTime: BOOL;
+    dwRevocationFreshnessTime  : DWORD;
+    // Flags passed when created via CertGetCertificateChain
+    dwCreationFlags : DWORD;
+    // Following is updated with unique Id when the chain context is logged.
+    ChainId: TGUID;
   end;
-
-  PCCERT_CHAIN_CONTEXT = ^CERT_CHAIN_CONTEXT;
 
 // SSPI
   SECURITY_STATUS = LONG;
@@ -444,6 +460,8 @@ type
   PSecurityFunctionTable = ^TSecurityFunctionTable;
 
   INIT_SECURITY_INTERFACE = function: PSecurityFunctionTable; stdcall;
+
+  function InitSecurityInterface: PSecurityFunctionTable; stdcall; external 'secur32.dll' name 'InitSecurityInterfaceW';
 
 const
 // SSPI
@@ -783,17 +801,21 @@ const
   SEC_E_INTERNAL_ERROR        = $80090304;
   SEC_E_INVALID_TOKEN         = $80090308;
   SEC_E_QOP_NOT_SUPPORTED     = $8009030A;
+  SEC_E_UNKNOWN_CREDENTIALS   = $8009030D;
   SEC_E_NO_CREDENTIALS        = $8009030E;
   SEC_E_MESSAGE_ALTERED       = $8009030F;
   SEC_E_OUT_OF_SEQUENCE       = $80090310;
   SEC_E_INCOMPLETE_MESSAGE    = $80090318;
   SEC_E_BUFFER_TOO_SMALL      = $80090321;
   SEC_E_WRONG_PRINCIPAL       = $80090322;
+  SEC_E_UNTRUSTED_ROOT        = $80090325;
   SEC_E_ENCRYPT_FAILURE       = $80090329;
   SEC_E_DECRYPT_FAILURE       = $80090330;
   SEC_E_CRYPTO_SYSTEM_INVALID = $80090337;
 
   CRYPT_E_NOT_FOUND           = $80092004;
+
+  CERT_E_UNTRUSTEDROOT        = $800B0109;
 
 // QueryContextAttributes/QueryCredentialsAttribute extensions
 
@@ -912,7 +934,7 @@ type
   end;
 
   TSecPkgContextIssuerListInfoEx = record
-    aIssuers: array[0..0] of CERT_NAME_BLOB;
+    aIssuers: PCERT_NAME_BLOB;
     cIssuers: Cardinal;
   end;
 
@@ -924,7 +946,7 @@ type
     dwKeySpec: DWORD;
     dwAcquirePrivateKeyFlags: DWORD;
     cIssuer: DWORD;
-    rgIssuer: pCERT_NAME_BLOB;
+    rgIssuer: PCERT_NAME_BLOB;
     pfnFindCallback: PFN_CERT_CHAIN_FIND_BY_ISSUER_CALLBACK;
     pvFindArg: Pointer;
     pdwIssuerChainIndex: PDWORD;
