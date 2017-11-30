@@ -1,4 +1,4 @@
-#DelphiTDS
+# DelphiTDS
 
 the purpose of this application is to display as much information as possible about debug info (TDS)
 

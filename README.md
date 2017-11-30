@@ -4,6 +4,9 @@ http://www.execute.fr
 
 ## Projects
 
+- AciiShape
+> Draw vectorial shapes out of ASCII template
+
 - CollectionTest
 > use a collection in a SubProperty
 
@@ -13,11 +16,17 @@ http://www.execute.fr
 - CubeMan3D
 > OpenGL cross platform demo (Windows, MacOSX, Android, Linux)
 
+- DateUtis
+> attempt to deal with Date and Time
+
 - DelphiTDS
 > Display informations from a TDS file
 
 - Demo1
 > GraphicPanels demo
+
+- DesktopDuplicationAPI
+> Desktop Duplication API for Delphi Tokyo
 
 - Google Cardboard
 > Demonstration of a Cardboard like application under Delphi Berlin

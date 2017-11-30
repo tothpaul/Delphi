@@ -95,7 +95,7 @@ end;
 
 class operator TDateOnly.Implicit(a: TDateOnly): TDate;
 begin
-  Result := a.Date;
+  Result := Trunc(a.Date);
 end;
 
 class operator TDateOnly.Implicit(a: TDate): TDateOnly;
@@ -125,7 +125,7 @@ begin
   if TimeStamp.Time = a.TimeStamp.Time then
     Result := EqualsValue
   else begin
-    if Abs(Frac(Time)) < Abs(Frac(a.Time)) then
+    if Abs(Time) < Abs(a.Time) then
       Result := LessThanValue
     else
       Result := GreaterThanValue;
@@ -149,7 +149,7 @@ end;
 
 class operator TTimeOnly.Implicit(a: TTimeOnly): TTime;
 begin
-  Result := a.Time;
+  Result := Frac(a.Time);
 end;
 
 class operator TTimeOnly.Implicit(a: TTime): TTimeOnly;

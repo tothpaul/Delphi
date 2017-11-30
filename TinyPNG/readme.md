@@ -1,4 +1,4 @@
-TinyPNG for Delphi Tokyo
+# TinyPNG for Delphi Tokyo
 
 small unit to load PNG files under Delphi Tokyo
 

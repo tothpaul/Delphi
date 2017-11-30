@@ -1,4 +1,4 @@
-#TComboEdit
+# TComboEdit
 
 a suggestion list for TEdit based on a hidden TComboBox
 
