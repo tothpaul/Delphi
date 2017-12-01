@@ -12,7 +12,7 @@ var
   stream: TFileStream;
 begin
   bitmap := TBitmap.Create;
-  stream := TFileStrea.Create('SAMPLE.JPG');
+  stream := TFileStream.Create('SAMPLE.JPG', fmOpenRead or fmShareDenyNone);
   bitmap.GDIPLoadFromStream(stream):
   stream.Free;
 end;
