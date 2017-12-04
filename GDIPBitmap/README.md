@@ -17,3 +17,5 @@ begin
   stream.Free;
 end;
 ```
+
+ExecuteGDIPBitmap.pas is a Delphi 5, 6, 7 (and probably olders) compatible version
