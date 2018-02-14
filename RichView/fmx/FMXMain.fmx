@@ -1,0 +1,160 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'Form1'
+  ClientHeight = 480
+  ClientWidth = 640
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  DesignerMasterStyle = 0
+  object Image1: TImage
+    MultiResBitmap = <
+      item
+        Width = 24
+        Height = 24
+        PNG = {
+          89504E470D0A1A0A0000000D4948445200000018000000180806000000E0773D
+          F8000000017352474200AECE1CE90000000467414D410000B18F0BFC61050000
+          00CE49444154484BB596810EC3200844EBBECC4FF7CFDC4EC550405BA6BEE422
+          238BC7B96636A494F275904F5B8FD113C4184B6395DF7EADAADC12E49C976431
+          3CA2104211AF671AF1FA37C08023CD300D30D128B297E911ED4019D0F4C71348
+          1068A419CA804F4E3525E2AAFDB2F4CF163A411B891E3F4B1EB4419F4E4F4DF2
+          B02501EFCBBF9C2D09A8452B3771252078FD842B01C0E6AD2C502D57E2AF041E
+          DC09BC6883076084306FFD6E06D6B158AADF2D8B42F6972E7D3C8E32090CF8B5
+          E93E220E36C2865CF24E3EFCDA725D5F546EDD27F675CB7A0000000049454E44
+          AE426082}
+        FileName = 
+          'C:\Users\Execute\Desktop\Execute\RichView\CrossComponents.RichVi' +
+          'ew\demo\Eugene\Image1.bmp'
+      end>
+    Position.X = 72.000000000000000000
+    Position.Y = 112.000000000000000000
+    Size.Width = 24.000000000000000000
+    Size.Height = 24.000000000000000000
+    Size.PlatformDefault = False
+    Visible = False
+    WrapMode = Original
+  end
+  object Image2: TImage
+    MultiResBitmap = <
+      item
+        Width = 24
+        Height = 24
+        PNG = {
+          89504E470D0A1A0A0000000D4948445200000018000000180806000000E0773D
+          F8000000017352474200AECE1CE90000000467414D410000B18F0BFC61050000
+          012D49444154484BB5950B0E823010448BF15E70743819F29031C3F6430DE125
+          4D4BB53B335B23C33CCF6B7A90D7313FC62FC1344DFBC65DB67AC7EACB49207E
+          F82FA51AEF63CE50220EF4A4AB99EBBE8375CB591B2D8A02ED7651F13CD64D65
+          1CC76D9DF6596BA826C8DBF22DB62C4B1A86211BEC23C4DAC904E4DE13705085
+          FD6ED867B0663F1687EE3BF0446A89DC7B4B2299803BF77584447CAEEFC45964
+          02E3E114C71A25DC35627A66E65964028B3971878E7A4D3117A27591EE045148
+          FD0744F4ECEEA1FBAF42D16B2D93FB28D09580813B44F4B38C781AE7F20E28A8
+          813B464D4822CE6502D0414F23A1565BA19940AE8159AE5554222D3281885230
+          C782AC65004A699A6F341CC7BE52442214F7739E58345FFA144240074B26208A
+          3A9702C021AD6BC4C2A229709F943E2A2B14A56FF78AB20000000049454E44AE
+          426082}
+        FileName = 
+          'C:\Users\Execute\Desktop\Execute\RichView\CrossComponents.RichVi' +
+          'ew\demo\Eugene\Image2.bmp'
+      end>
+    Position.X = 72.000000000000000000
+    Position.Y = 160.000000000000000000
+    Size.Width = 24.000000000000000000
+    Size.Height = 24.000000000000000000
+    Size.PlatformDefault = False
+    Visible = False
+  end
+  object ImageList1: TImageList
+    Source = <
+      item
+        MultiResBitmap.Height = 15
+        MultiResBitmap.LoadSize = 0
+        MultiResBitmap.TransparentColor = 536870912
+        MultiResBitmap = <
+          item
+            Width = 16
+            Height = 15
+            PNG = {
+              89504E470D0A1A0A0000000D49484452000000100000000F0806000000ED734F
+              2F000000017352474200AECE1CE90000000467414D410000B18F0BFC61050000
+              005C49444154384F63A029F89F3EE53F0843B9A40398667C86308208BC0A66E6
+              C0D5C0D818805867E25447AC012080552D29068000867A520D0001981E26308F
+              5240572F60554BAC01D8D4512721E1023083897521060069C4AF998101003476
+              516BA26DBF020000000049454E44AE426082}
+            FileName = 
+              'C:\Users\Execute\Desktop\Execute\RichView\CrossComponents.RichVi' +
+              'ew\demo\Eugene\ImageList0.bmp'
+          end>
+        Name = 'ImageList0'
+      end
+      item
+        MultiResBitmap.Height = 15
+        MultiResBitmap.LoadSize = 0
+        MultiResBitmap.TransparentColor = 536870912
+        MultiResBitmap = <
+          item
+            Width = 16
+            Height = 15
+            PNG = {
+              89504E470D0A1A0A0000000D49484452000000100000000F0806000000ED734F
+              2F000000017352474200AECE1CE90000000467414D410000B18F0BFC61050000
+              005649444154384FED8EDB0A00200843ADFFFFE72ED2C2D2A4F0B543509A9B23
+              8FC2C7278D5B21C56DE838677E589B4F26AA69898165B2343C31D84D66712306
+              D2841F2F620093CC558019A57393049B4138C1370843540134CD10126C82AFC5
+              0000000049454E44AE426082}
+            FileName = 
+              'C:\Users\Execute\Desktop\Execute\RichView\CrossComponents.RichVi' +
+              'ew\demo\Eugene\ImageList1.bmp'
+          end>
+        Name = 'ImageList1'
+      end
+      item
+        MultiResBitmap.Height = 15
+        MultiResBitmap.LoadSize = 0
+        MultiResBitmap.TransparentColor = 536870912
+        MultiResBitmap = <
+          item
+            Width = 16
+            Height = 15
+            PNG = {
+              89504E470D0A1A0A0000000D49484452000000100000000F0806000000ED734F
+              2F000000017352474200AECE1CE90000000467414D410000B18F0BFC61050000
+              006149444154384F63A014308288FF60443A006A06EBA708804DA826D305ADD4
+              700118805C007305328D4D1C06607C26300F070039919033F11A80EC021840E7
+              C30D00D9842E49B10BD001C802748B48F602D5C1C02724B00940EBC972012303
+              032300542222D3743DBEBD0000000049454E44AE426082}
+            FileName = 
+              'C:\Users\Execute\Desktop\Execute\RichView\CrossComponents.RichVi' +
+              'ew\demo\Eugene\ImageList2.bmp'
+          end>
+        Name = 'ImageList2'
+      end>
+    Destination = <
+      item
+        Layers = <
+          item
+            Name = 'ImageList0'
+            SourceRect.Bottom = 15.000000000000000000
+          end>
+      end
+      item
+        Layers = <
+          item
+            Name = 'ImageList1'
+            SourceRect.Bottom = 15.000000000000000000
+          end>
+      end
+      item
+        Layers = <
+          item
+            Name = 'ImageList2'
+            SourceRect.Bottom = 15.000000000000000000
+          end>
+      end>
+    Left = 216
+    Top = 64
+  end
+end
