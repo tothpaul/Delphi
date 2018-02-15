@@ -2,7 +2,7 @@
 
 this is a work in progess and do not work properly
 
-text selection if fixed ! do beleave the picture below :)
+text selection if fixed ! 
 
 no scrollbar for now
 
