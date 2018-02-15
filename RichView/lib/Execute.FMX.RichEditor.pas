@@ -2,7 +2,7 @@ unit Execute.FMX.RichEditor;
 
 { RichDocument (c)2018 by Execute SARL <contact@execute.fr> }
 
-// do not work for now :(
+// scrollbars are missing
 
 interface
 
@@ -69,7 +69,6 @@ type
     FCanvas: TCanvas;
     FTextLayout: TTextLayout;
     function MeasureText(RichItem: TRichItem; var ItemPos: TItemPos; Len: Integer): Integer; override;
-    procedure TextOut(Text: PChar; Len: Integer; Selected: Boolean);
     procedure UpdateSelection(DrawItem: TDrawItem);
     procedure DrawText(DrawItem: TDrawItem);
     procedure DrawSpecial(DrawItem: TDrawItem);
@@ -268,11 +267,26 @@ begin
 //  UpdateSelection(DrawItem);
 end;
 
+type
+  TRichTextAttribute = class(TTextAttributedRange)
+    constructor Create(APos, ALen: Integer; AColor: TColor);
+  end;
+
+constructor TRichTextAttribute.Create(APos: Integer; ALen: Integer; AColor: TColor);
+begin
+  Range.Pos := APos;
+  Range.Length := ALen;
+  Attribute.Color := AColor;
+end;
+
 procedure TFMXRichRenderer.DrawText(DrawItem: TDrawItem);
 var
   Start, Stop: Integer;
-  Text : PChar;
-  a,b,c: Integer;
+  Text  : PChar;
+  a,b,c : Integer;
+  Str   : string;
+  Attr  : TRichTextAttribute;
+  Region: TRegion;
 begin
   SetStyle(DrawItem.RichItem.Style);
   Text := @DrawItem.Text[DrawItem.Start];
@@ -312,34 +326,39 @@ begin
 
   end;
 
-  FCaret.X := DrawItem.Left;
-  FCaret.Y := DrawItem.Top;
-  if a > 0 then
+  SetString(Str, Text, DrawItem.Count);
+  FTextLayout.BeginUpdate;
+  FTextLayout.ClearAttributes;
+  FTextLayout.TopLeft := TPointF.Create(DrawItem.Left, DrawItem.Top);
+  FTextLayout.Text := Str;
+
+  if b > 0 then  // there's a selection
   begin
-    TextOut(Text, a, False);
+    if a > 0 then // text before the selection
+    begin
+      FTextLayout.AddAttribute(TRichTextAttribute.Create(0, a, FTextLayout.Color));
+    end;
+    // the selected portion
+    Attr := TRichTextAttribute.Create(a, b, TAlphaColorRec.White);
+    FTextLayout.AddAttribute(Attr);
+
+    if c > 0 then // text after the selection
+    begin
+      FTextLayout.AddAttribute(TRichTextAttribute.Create(a + b, c, FTextLayout.Color));
+    end;
+
   end;
-  Document.SetSelectionPosition(DrawItem.RichItem, FCaret.Round, DrawItem.Rect.Height);
-  if b > 0 then
+  FTextLayout.EndUpdate;
+
+  if b > 0 then // render the selection background
   begin
-//    SetBkColor(FDC, $FF9933);
+    Region := FTextLayout.RegionForRange(Attr.Range, False);
     FCanvas.Fill.Color := $3399FF or TAlphaColorRec.Alpha;
-    FTextLayout.Color := TAlphaColorRec.White;
-    TextOut(@Text[a], b, True);
-  end;
-  if FSelect = +1 then
-  begin
-    if b > 0 then
-      Document.SetSelectionPosition(DrawItem.RichItem, FCaret.Round, DrawItem.Rect.Height);
-//    SetBkColor(FDC, $FFFFFF);
-    FCanvas.Fill.Color := TAlphaColorRec.White;
-    FTextLayout.Color := DrawItem.RichItem.Style.Color or TAlphaColorRec.Alpha;
-    FSelect := +2;
-  end;
-  if c > 0 then
-  begin
-    TextOut(@Text[a + b], c, False);
+    FCanvas.FillRect(Region[0], 0, 0, [], 1);
   end;
 
+  // render the text with appropiate attributes
+  FTextLayout.RenderLayout(FCanvas);
 end;
 
 
@@ -432,25 +451,6 @@ begin
   FTextLayout.Font.Size := (AStyle.Font.Size * 96) / 72; // 72dpi VCL -> 96dpi FMX
   FTextLayout.Font.Style := AStyle.Font.Style;
   FTextLayout.EndUpdate;
-end;
-
-procedure TFMXRichRenderer.TextOut(Text: PChar; Len: Integer; Selected: Boolean);
-var
-  Str: string;
-  r  : TRectF;
-begin
-  SetString(Str, Text, Len);
-  FTextLayout.BeginUpdate;
-  FTextLayout.TopLeft := FCaret;
-  FTextLayout.Text := Str;
-  FTextLayout.EndUpdate;
-  r := FTextLayout.TextRect;
-  if Selected then
-  begin
-    FCanvas.FillRect(r, 0, 0, [], 1);
-  end;
-  FTextLayout.RenderLayout(FCanvas);
-  FCaret.X := FCaret.X + r.Width;
 end;
 
 procedure TFMXRichRenderer.UpdateSelection(DrawItem: TDrawItem);

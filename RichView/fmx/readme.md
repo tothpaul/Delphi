@@ -2,7 +2,7 @@
 
 this is a work in progess and do not work properly
 
-as you can see the Italic text is moving when you select it (because of TextLayout text with computation I guess)
+text selection if fixed ! do beleave the picture below :)
 
 no scrollbar for now
 
