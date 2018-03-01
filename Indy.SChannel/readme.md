@@ -2,6 +2,7 @@
 
 With this code you can replace the OpenSSL dependend TIdSSLIOHandlerSocketOpenSSL component with a SChannel ([Secure Channel](https://msdn.microsoft.com/fr-fr/library/windows/desktop/aa380123(v=vs.85).aspx)) based component.
 
+![screenshot](Indy.SChannel.png)
 ```Pascal
 procedure TForm1.Button1Click(Sender: TObject);
 begin

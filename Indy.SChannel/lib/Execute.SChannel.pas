@@ -232,7 +232,6 @@ begin
 
   WHost := Servername;
 
-  // 'InitializeSecurityContext returns 80090318'
   Error := SSPI.InitializeSecurityContext(
    @Credentials,
     nil,   // nil on first call, to create the Context
