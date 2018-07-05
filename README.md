@@ -40,3 +40,6 @@ http://www.execute.fr
 
 - TinyPNG
 > a tiny Unit to load PNG files
+
+- Tuple
+> use Tuples under Delphi :)
