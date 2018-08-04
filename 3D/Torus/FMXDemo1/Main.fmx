@@ -1,0 +1,87 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'FMX Tore (c)2017 Execute SARL'
+  Color = xFEFFFFFF
+  ClientHeight = 382
+  ClientWidth = 548
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = Form3DCreate
+  DesignerMasterStyle = 0
+  object Mesh1: TMesh
+    WrapMode = Fit
+    Width = 10.000000000000000000
+    Height = 10.000000000000000000
+    Depth = 2.000000000000000000
+    MaterialSource = LightMaterialSource1
+    object Mesh2: TMesh
+      WrapMode = Fit
+      Position.X = 2.000000000000000000
+      RotationAngle.X = 90.000000000000000000
+      Width = 10.000000000000000000
+      Height = 10.000000000000000000
+      Depth = 2.000000000000000000
+      MaterialSource = LightMaterialSource2
+      Quanternion = '(0.70710676908493,0,0,0.70710676908493)'
+    end
+    object FloatAnimation1: TFloatAnimation
+      Enabled = True
+      Duration = 5.000000000000000000
+      Loop = True
+      PropertyName = 'RotationAngle.Y'
+      StartValue = 0.000000000000000000
+      StopValue = 360.000000000000000000
+    end
+    object FloatAnimation2: TFloatAnimation
+      Enabled = True
+      Duration = 10.000000000000000000
+      Loop = True
+      PropertyName = 'RotationAngle.X'
+      StartValue = 0.000000000000000000
+      StopValue = 360.000000000000000000
+    end
+    object FloatAnimation3: TFloatAnimation
+      Enabled = True
+      Duration = 20.000000000000000000
+      Loop = True
+      PropertyName = 'RotationAngle.Z'
+      StartValue = 0.000000000000000000
+      StopValue = 360.000000000000000000
+    end
+  end
+  object Light1: TLight
+    Color = claWhite
+    LightType = Directional
+    SpotCutOff = 180.000000000000000000
+    Position.X = -4.891588687896729000
+    Position.Y = -0.137805461883544900
+    RotationAngle.X = 329.307006835937500000
+    RotationAngle.Y = 51.963283538818360000
+    Width = 1.000000000000000000
+    Height = 1.000000000000000000
+    Depth = 1.000000000000000000
+    Quanternion = 
+      '(0.237907901406288,-0.422462582588196,-0.115941114723682,-0.8668' +
+      '81191730499)'
+  end
+  object LightMaterialSource1: TLightMaterialSource
+    Diffuse = claSkyblue
+    Ambient = xFF202020
+    Emissive = claNull
+    Specular = xFF606060
+    Shininess = 30
+    Left = 208
+    Top = 240
+  end
+  object LightMaterialSource2: TLightMaterialSource
+    Diffuse = claSpringgreen
+    Ambient = xFF202020
+    Emissive = claNull
+    Specular = xFF606060
+    Shininess = 30
+    Left = 200
+    Top = 248
+  end
+end

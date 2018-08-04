@@ -1,0 +1,120 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{5F488ABF-DBDC-42A7-8209-A8A1D2E34EB7}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Torus\Demo1\Demo1.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Torus\Demo2\Demo2.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Torus\GLDemo1\GLDemo1.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Torus\FMXDemo1\FMXDemo1.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Torus\Demo3\Demo3.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Torus\Demo4\Demo4.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Torus\GLDemo2\GLDemo2.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="RayMarching\RayMarching.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Demo1">
+        <MSBuild Projects="Torus\Demo1\Demo1.dproj"/>
+    </Target>
+    <Target Name="Demo1:Clean">
+        <MSBuild Projects="Torus\Demo1\Demo1.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Demo1:Make">
+        <MSBuild Projects="Torus\Demo1\Demo1.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Demo2">
+        <MSBuild Projects="Torus\Demo2\Demo2.dproj"/>
+    </Target>
+    <Target Name="Demo2:Clean">
+        <MSBuild Projects="Torus\Demo2\Demo2.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Demo2:Make">
+        <MSBuild Projects="Torus\Demo2\Demo2.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="GLDemo1">
+        <MSBuild Projects="Torus\GLDemo1\GLDemo1.dproj"/>
+    </Target>
+    <Target Name="GLDemo1:Clean">
+        <MSBuild Projects="Torus\GLDemo1\GLDemo1.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="GLDemo1:Make">
+        <MSBuild Projects="Torus\GLDemo1\GLDemo1.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="FMXDemo1">
+        <MSBuild Projects="Torus\FMXDemo1\FMXDemo1.dproj"/>
+    </Target>
+    <Target Name="FMXDemo1:Clean">
+        <MSBuild Projects="Torus\FMXDemo1\FMXDemo1.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FMXDemo1:Make">
+        <MSBuild Projects="Torus\FMXDemo1\FMXDemo1.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Demo3">
+        <MSBuild Projects="Torus\Demo3\Demo3.dproj"/>
+    </Target>
+    <Target Name="Demo3:Clean">
+        <MSBuild Projects="Torus\Demo3\Demo3.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Demo3:Make">
+        <MSBuild Projects="Torus\Demo3\Demo3.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Demo4">
+        <MSBuild Projects="Torus\Demo4\Demo4.dproj"/>
+    </Target>
+    <Target Name="Demo4:Clean">
+        <MSBuild Projects="Torus\Demo4\Demo4.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Demo4:Make">
+        <MSBuild Projects="Torus\Demo4\Demo4.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="GLDemo2">
+        <MSBuild Projects="Torus\GLDemo2\GLDemo2.dproj"/>
+    </Target>
+    <Target Name="GLDemo2:Clean">
+        <MSBuild Projects="Torus\GLDemo2\GLDemo2.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="GLDemo2:Make">
+        <MSBuild Projects="Torus\GLDemo2\GLDemo2.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="RayMarching">
+        <MSBuild Projects="RayMarching\RayMarching.dproj"/>
+    </Target>
+    <Target Name="RayMarching:Clean">
+        <MSBuild Projects="RayMarching\RayMarching.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="RayMarching:Make">
+        <MSBuild Projects="RayMarching\RayMarching.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Demo1;Demo2;GLDemo1;FMXDemo1;Demo3;Demo4;GLDemo2;RayMarching"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Demo1:Clean;Demo2:Clean;GLDemo1:Clean;FMXDemo1:Clean;Demo3:Clean;Demo4:Clean;GLDemo2:Clean;RayMarching:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Demo1:Make;Demo2:Make;GLDemo1:Make;FMXDemo1:Make;Demo3:Make;Demo4:Make;GLDemo2:Make;RayMarching:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
