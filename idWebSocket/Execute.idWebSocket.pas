@@ -34,6 +34,7 @@ type
     procedure CloseMessage;
   public
     procedure SetText(const Str: string);
+    procedure SetData(const Data: TBytes; IsText: Boolean = False);
   end;
 
   TWebSocketDataEvent = procedure(Socket: TWebSocket; const Data: TBytes; var IsText: Boolean) of object;
@@ -58,14 +59,17 @@ type
 implementation
 
 procedure TWebSocketMessage.SetText(const Str: string);
+begin
+  SetData(TEncoding.UTF8.GetBytes(Str), True);
+end;
+
+procedure TWebSocketMessage.SetData(const Data: TBytes; IsText: Boolean = False);
 var
-  utf: UTF8String;
   len: Int64;
   x,c: Integer;
   i  : Integer;
 begin
-  utf := UTF8Encode(Str);
-  len := Length(utf);
+  len := Length(Data);
   c := 2 + Len;
   if Len > 125 then
   begin
@@ -74,7 +78,10 @@ begin
       Inc(c, 6);
   end;
   SetLength(FData, c);
-  FData[0] := $81; // FIN, TEXT
+  if IsText then
+    FData[0] := $81  // FIN, TEXT
+  else
+    FData[0] := $82; // FIN, Binary
   x := 1;
   if Len < 126 then
   begin
@@ -97,9 +104,9 @@ begin
       Len := Len shr 8;
     end;
     Inc(x, c + 1);
-    Len := Length(utf);
+    Len := Length(Data);
   end;
-  Move(utf[1], FData[x], Len);
+  Move(Data[0], FData[x], Len);
 end;
 
 procedure TWebSocketMessage.CloseMessage;
