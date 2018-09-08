@@ -13,8 +13,8 @@ http://www.execute.fr
 - ComboEdit
 > use a hidden ComboBox as a Edit suggestion list
 
-- CubeMan3D
-> OpenGL cross platform demo (Windows, MacOSX, Android, Linux)
+- CubeMan3D [moved](https://github.com/tothpaul/Delphi-LowLevel/tree/master/CubeMan3D)
+> ~~OpenGL cross platform demo (Windows, MacOSX, Android, Linux)~~
 
 - DateUtis
 > attempt to deal with Date and Time
