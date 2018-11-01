@@ -912,13 +912,16 @@ const
   SEC_E_BUFFER_TOO_SMALL      = $80090321;
   SEC_E_WRONG_PRINCIPAL       = $80090322;
   SEC_E_UNTRUSTED_ROOT        = $80090325;
+  SEC_E_ILLEGAL_MESSAGE       = $80090326;
   SEC_E_ENCRYPT_FAILURE       = $80090329;
   SEC_E_DECRYPT_FAILURE       = $80090330;
   SEC_E_CRYPTO_SYSTEM_INVALID = $80090337;
 
   CRYPT_E_NOT_FOUND           = $80092004;
 
+  // https://msdn.microsoft.com/fr-fr/library/windows/desktop/aa377188(v=vs.85).aspx
   CERT_E_UNTRUSTEDROOT        = $800B0109;
+  CERT_E_CN_NO_MATCH          = $800B010F;  // The certificate's CN name does not match the passed value.
 
 // QueryContextAttributes/QueryCredentialsAttribute extensions
 
@@ -1176,6 +1179,8 @@ begin
 end;
 
 initialization
+{$IFDEF WIN32}
   Assert(SizeOf(CERT_CHAIN_CONTEXT) = 56);
+{$ENDIF}
 end.
 
