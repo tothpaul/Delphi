@@ -1,6 +1,6 @@
 unit Execute.WinSSPI;
 {
-  SChannel (SSPI + CryptoLib) (c)2017-2018 Execute SARL
+  SChannel (SSPI + CryptoLib) (c)2017-2019 Execute SARL
 
   partialy based on wcrypt2 (http://delphi-jedi.org)
 }
@@ -87,8 +87,10 @@ type
     cbCertEncoded :DWORD;
     pCertInfo :PCERT_INFO;
     hCertStore :HCERTSTORE;
+    function FindExtension(OID: PAnsiChar): PCERT_EXTENSION;
   end;
   PCCERT_CONTEXT = ^CERT_CONTEXT;
+  PPCCERT_CONTEXT = ^PCCERT_CONTEXT;
   SCHANNEL_CRED = record
     dwVersion: DWORD;
     cCreds: DWORD;
@@ -519,6 +521,72 @@ function CertCreateCertificateContext(
   cbCertEncoded: DWORD
 ): PCCERT_CONTEXT; stdcall; external 'crypt32.dll';
 
+function CertEnumCertificatesInStore(
+  hCertStore       : HCERTSTORE;
+  pPrevCertContext : PCCERT_CONTEXT
+): PCCERT_CONTEXT; stdcall; external 'crypt32.dll';
+
+function CertAddEncodedCertificateToStore(
+  hCertStore        : HCERTSTORE;
+  dwCertEncodingType: DWORD;
+  pbCertEncoded     : Pointer;
+  cbCertEncoded     : DWORD;
+  dwAddDisposition  : DWORD;
+  ppCertContext     : PPCCERT_CONTEXT
+): BOOL; stdcall; external 'crypt32.dll';
+
+const
+  CERT_KEY_PROV_HANDLE_PROP_ID                = 1;
+  CERT_KEY_PROV_INFO_PROP_ID                  = 2;
+  CERT_SHA1_HASH_PROP_ID                      = 3;
+  CERT_MD5_HASH_PROP_ID                       = 4;
+  CERT_HASH_PROP_ID                           = CERT_SHA1_HASH_PROP_ID;
+  CERT_KEY_CONTEXT_PROP_ID                    = 5;
+  CERT_KEY_SPEC_PROP_ID                       = 6;
+  CERT_IE30_RESERVED_PROP_ID                  = 7;
+  CERT_PUBKEY_HASH_RESERVED_PROP_ID           = 8;
+  CERT_ENHKEY_USAGE_PROP_ID                   = 9;
+  CERT_CTL_USAGE_PROP_ID                      = CERT_ENHKEY_USAGE_PROP_ID;
+  CERT_NEXT_UPDATE_LOCATION_PROP_ID           = 10;
+  CERT_FRIENDLY_NAME_PROP_ID                  = 11;
+  CERT_PVK_FILE_PROP_ID                       = 12;
+  CERT_DESCRIPTION_PROP_ID                    = 13;
+  CERT_ACCESS_STATE_PROP_ID                   = 14;
+  CERT_SIGNATURE_HASH_PROP_ID                 = 15;
+  CERT_SMART_CARD_DATA_PROP_ID                = 16;
+  CERT_EFS_PROP_ID                            = 17;
+  CERT_FORTEZZA_DATA_PROP_ID                  = 18;
+  CERT_ARCHIVED_PROP_ID                       = 19;
+  CERT_KEY_IDENTIFIER_PROP_ID                 = 20;
+  CERT_AUTO_ENROLL_PROP_ID                    = 21;
+  CERT_PUBKEY_ALG_PARA_PROP_ID                = 22;
+  CERT_CROSS_CERT_DIST_POINTS_PROP_ID         = 23;
+  CERT_ISSUER_PUBLIC_KEY_MD5_HASH_PROP_ID     = 24;
+  CERT_SUBJECT_PUBLIC_KEY_MD5_HASH_PROP_ID    = 25;
+  CERT_ENROLLMENT_PROP_ID                     = 26;
+  CERT_DATE_STAMP_PROP_ID                     = 27;
+  CERT_ISSUER_SERIAL_NUMBER_MD5_HASH_PROP_ID  = 28;
+  CERT_SUBJECT_NAME_MD5_HASH_PROP_ID          = 29;
+  CERT_EXTENDED_ERROR_INFO_PROP_ID            = 30;
+  CERT_RENEWAL_PROP_ID                        = 64;
+  CERT_ARCHIVED_KEY_HASH_PROP_ID              = 65;
+  CERT_FIRST_RESERVED_PROP_ID                 = 66;
+  CERT_NCRYPT_KEY_HANDLE_PROP_ID              = 78;
+
+  CERT_STORE_ADD_USE_EXISTING = 2;
+
+function CertEnumCertificateContextProperties(
+  pCertContext: PCCERT_CONTEXT;
+  dwPropID    : DWORD
+): DWORD; stdcall; external 'crypt32.dll';
+
+function CertGetCertificateContextProperty(
+      pCertContext: PCCERT_CONTEXT;
+      dwPropID    : DWORD;
+      pvData      : Pointer;
+  var pcbData     : DWORD
+): BOOL; stdcall; external 'crypt32.dll';
+
 function CryptImportPublicKeyInfo(
       hCryptProv: HCRYPTPROV;
       dwCertEncodingType: DWORD;
@@ -876,6 +944,16 @@ const
   SP_PROT_TLS1_CLIENT             = $00000080;
   SP_PROT_TLS1                    = (SP_PROT_TLS1_SERVER or SP_PROT_TLS1_CLIENT);
 
+  SP_PROT_TLS1_1_SERVER           = $00000100;
+  SP_PROT_TLS1_1_CLIENT           = $00000200;
+  SP_PROT_TLS1_1                  = (SP_PROT_TLS1_1_SERVER or SP_PROT_TLS1_1_CLIENT);
+
+  SP_PROT_TLS1_2_SERVER           = $00000400;
+  SP_PROT_TLS1_2_CLIENT           = $00000800;
+  SP_PROT_TLS1_2                  = (SP_PROT_TLS1_2_SERVER or SP_PROT_TLS1_2_CLIENT);
+
+  SP_PROT_TLS                     = SP_PROT_TLS1 or SP_PROT_TLS1_2;
+
   SP_PROT_SSL3TLS1_CLIENTS        = (SP_PROT_TLS1_CLIENT or SP_PROT_SSL3_CLIENT);
   SP_PROT_SSL3TLS1_SERVERS        = (SP_PROT_TLS1_SERVER or SP_PROT_SSL3_SERVER);
   SP_PROT_SSL3TLS1                = (SP_PROT_SSL3 or SP_PROT_TLS1);
@@ -915,6 +993,7 @@ const
   SEC_E_ILLEGAL_MESSAGE       = $80090326;
   SEC_E_ENCRYPT_FAILURE       = $80090329;
   SEC_E_DECRYPT_FAILURE       = $80090330;
+  SEC_E_ALGORITHM_MISMATCH    = $80090331;
   SEC_E_CRYPTO_SYSTEM_INVALID = $80090337;
 
   CRYPT_E_NOT_FOUND           = $80092004;
@@ -1075,6 +1154,32 @@ type
   end;
   PCRYPTPROTECT_PROMPTSTRUCT = ^CRYPTPROTECT_PROMPTSTRUCT;
 
+const
+  CERT_NAME_EMAIL_TYPE            = 1;
+  CERT_NAME_RDN_TYPE              = 2;
+  CERT_NAME_ATTR_TYPE             = 3;
+                szOID_COMMON_NAME = '2.5.4.3';
+   szOID_AUTHORITY_KEY_IDENTIFIER = '2.5.29.1';
+      szOID_KEY_USAGE_RESTRICTION = '2.5.29.4';
+           szOID_SUBJECT_ALT_NAME = '2.5.29.7';
+            szOID_ISSUER_ALT_NAME = '2.5.29.8';
+          szOID_SUBJECT_ALT_NAME2 = '2.5.29.17';
+  CERT_NAME_SIMPLE_DISPLAY_TYPE   = 4;
+  CERT_NAME_FRIENDLY_DISPLAY_TYPE = 5;
+  CERT_NAME_DNS_TYPE              = 6;
+
+  CERT_NAME_SEARCH_ALL_NAMES_FLAG    = $00000002;
+  CERT_NAME_STR_ENABLE_PUNYCODE_FLAG = $00200000;
+
+function CertGetNameStringW(
+    pCertContext : PCCERT_CONTEXT;
+    dwType       : DWORD;
+    dwFlags      : DWORD;
+    pvTypePara   : Pointer;
+    pszNameString: PChar;
+    cchNameString: DWORD
+): DWORD; stdcall; external 'crypt32.dll';
+
 function CertNameToStr(
         dwCertEncodingType: DWORD;
   const pName: CERT_NAME_BLOB;
@@ -1125,6 +1230,38 @@ function CertFindCertificateInStore(hCertStore :HCERTSTORE;
                                     pPrevCertContext :PCCERT_CONTEXT
                                     ):PCCERT_CONTEXT ; stdcall; external 'crypt32.dll';
 
+function CertFindExtension(
+  pszObjId    : PAnsiChar;
+  cExtensions : DWORD;
+  rgExtensions: PCERT_EXTENSION
+): PCERT_EXTENSION; stdcall; external 'crypt32.dll';
+
+const
+  CRYPT_DECODE_NOCOPY_FLAG = 1;
+
+  X509_NAME = PAnsiChar(7);
+
+function CryptDecodeObject(
+     dwCertEncodingType : DWORD;
+     lpszStructType     : PAnsiChar;
+     pbEncoded          : Pointer;
+     cbEncoded          : DWORD;
+     dwFlags            : DWORD;
+     pvStructInfo       : Pointer;
+ var pcbStructInfo      : DWORD
+): BOOL; stdcall; external 'crypt32.dll';
+
+function CryptDecodeObjectEx(
+     dwCertEncodingType : DWORD;
+     lpszStructType     : PAnsiChar;
+     pbEncoded          : Pointer;
+     cbEncoded          : DWORD;
+     dwFlags            : DWORD;
+     pDecodePara        : Pointer;// PCRYPT_DECODE_PARA;
+     pvStructInfo       : Pointer;
+ var pcbStructInfo      : DWORD
+): BOOL; stdcall; external 'crypt32.dll';
+
 function CertFindChainInStore(
          hCertStore:          HCERTSTORE;
          dwCertEncodingType:  DWORD;
@@ -1157,30 +1294,103 @@ function CryptUnprotectData(
 ): BOOL; stdcall; external 'crypt32.dll';
 
 
+const
+  CRYPT_USER_PROTECTED  = $00000002;
+  PKCS12_NO_PERSIST_KEY = $00008000;
+
 function PFXImportCertStore(
   var pPFX: CRYPT_DATA_BLOB;
       szPassword: PChar;
       dwFlags : DWORD
 ) : HCERTSTORE; stdcall; external 'crypt32.dll' name 'PFXImportCertStore';
 
-function CertName(Cert: PCCERT_CONTEXT; var Blob: CERT_NAME_BLOB): string;
+function CertName(Cert: PCCERT_CONTEXT; var Blob: CERT_NAME_BLOB; Flags: DWORD = CERT_X500_NAME_STR or CERT_NAME_STR_NO_PLUS_FLAG or CERT_NAME_STR_REVERSE_FLAG): string;
+function CertGetNameString(Cert: PCCERT_CONTEXT; dwType, dwFlags: DWORD; pvTypePara: Pointer): string;
+function SerialNumber(const Number: CRYPT_INTEGER_BLOB): string;
 
 implementation
 
-function CertName(Cert: PCCERT_CONTEXT; var Blob: CERT_NAME_BLOB): string;
+function CertName(Cert: PCCERT_CONTEXT; var Blob: CERT_NAME_BLOB; Flags: DWORD = CERT_X500_NAME_STR or CERT_NAME_STR_NO_PLUS_FLAG or CERT_NAME_STR_REVERSE_FLAG): string;
 var
   Len: Integer;
 begin
-  Len := CertNameToStr(Cert.dwCertEncodingType, Blob, CERT_X500_NAME_STR or CERT_NAME_STR_NO_PLUS_FLAG or CERT_NAME_STR_REVERSE_FLAG, nil, 0);
-  if Len <= 0 then
+  Len := CertNameToStr(Cert.dwCertEncodingType, Blob, Flags, nil, 0);
+  if Len <= 1 then
     Exit('');
   SetLength(Result, Len - 1); // string has already an extra #0
-  CertNameToStr(Cert.dwCertEncodingType, Blob, CERT_X500_NAME_STR or CERT_NAME_STR_NO_PLUS_FLAG or CERT_NAME_STR_REVERSE_FLAG, @Result[1], Len + 1);
+  CertNameToStr(Cert.dwCertEncodingType, Blob, Flags, @Result[1], Len + 1);
+end;
+
+function CertGetNameString(Cert: PCCERT_CONTEXT; dwType, dwFlags: DWORD; pvTypePara: Pointer): string;
+var
+  Len: Integer;
+begin
+  dwFlags := dwFlags or CERT_NAME_SEARCH_ALL_NAMES_FLAG or CERT_NAME_STR_ENABLE_PUNYCODE_FLAG;
+  Len := CertGetNameStringW(Cert, dwType, dwFlags, pvTypePara, nil, 0);
+  if Len <= 1 then
+    Result := ''
+  else begin
+    SetLength(Result, Len - 1);
+    CertGetNameStringW(Cert, dwType, dwFlags, pvTypePara, Pointer(Result), Len);
+  end;
+end;
+
+function SerialNumber(const Number: CRYPT_INTEGER_BLOB): string;
+// FF00 -> 255,0  => 65280
+// 1980 -> 25,128 -> 0
+// 028C ->  2,140 -> 8
+// 0041 ->  0, 65 -> 2
+// 0006 ->  0,  6 -> 5
+// 0000 ->      0 -> 6
+var
+  Source: Integer;
+  Index : Integer;
+  Value : Integer;
+  Digits: Integer;
+  Store : Integer;
+  Add   : Integer;
+  Bytes : TArray<Byte>;
+begin
+  Digits := Number.cbData;
+  SetLength(Bytes, Digits);
+    Move(Number.pbData^, Bytes[0], Digits);
+  Result := '';
+  Dec(Digits);
+  while Digits >= 0 do
+  begin
+    Value := 0;
+    for Index := Digits downto 0 do
+    begin
+      Value := Value * 256 + Bytes[Index];
+      Bytes[Index] := Value div 10;
+      Value := Value mod 10;
+    end;
+    Result := Char(Ord('0') + Value) + Result;
+    if Bytes[Digits] = 0 then
+      Dec(Digits);
+  end;
+end;
+
+{ CERT_CONTEXT }
+
+function CERT_CONTEXT.FindExtension(OID: PAnsiChar): PCERT_EXTENSION;
+begin
+  Result := CertFindExtension(OID, pCertInfo.cExtension, pCertInfo.rgExtension);
+end;
+
+procedure test();
+var
+  n: CRYPT_INTEGER_BLOB;
+begin
+  n.cbData := 2;
+  n.pbData := #0#255;
+  Assert(SerialNumber(n) = '65280');
 end;
 
 initialization
 {$IFDEF WIN32}
   Assert(SizeOf(CERT_CHAIN_CONTEXT) = 56);
+//  test();
 {$ENDIF}
 end.
 

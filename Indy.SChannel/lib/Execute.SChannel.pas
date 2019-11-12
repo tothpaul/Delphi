@@ -4,8 +4,8 @@ unit Execute.SChannel;
 }
 interface
 {$IFDEF DEBUG}
-{$DEFINE LOG}
-{$DEFINE TRACE}
+{.$DEFINE LOG}
+{.$DEFINE TRACE}
 {$ENDIF}
 {$POINTERMATH ON}
 uses
@@ -26,13 +26,19 @@ type
     function ValidateElement(Element: PCERT_CHAIN_ELEMENT): Boolean; virtual;
   end;
 
+  TSSLValidAll = class(TSSLValidator)
+    function ValidateChain(Chain: PCCERT_CHAIN_CONTEXT; var Status: CERT_CHAIN_POLICY_STATUS): Boolean; override;
+    function ValidateElement(Element: PCERT_CHAIN_ELEMENT): Boolean; override;
+  end;
+
   TCredentialsCallBack = procedure(SSL: Integer; UserData: Pointer);
 
 { Is SChannel available }
 function SSLAvailable: Boolean;
+procedure SSLShutdown;
 
 { Start a TLS connexion over a socket }
-function SSLStart(Socket: Integer; const Host: AnsiString = ''): Integer;
+function SSLStart(Socket: Integer; const Host: AnsiString = ''; Store: HCERTSTORE = 0): Integer;
 
 procedure SSLCredentialsCallBack(SSL: Integer; CallBack: TCredentialsCallBack; UserData: Pointer);
 
@@ -50,6 +56,7 @@ function SSLClose(SSL: Integer): Integer;
 var
   CertStatus: Cardinal;
   SSLError: string;
+  SSPError  : HRESULT;
 {$IFDEF TRACE}
   TraceFile : string = 'TLS.txt';
 {$ENDIF}
@@ -200,6 +207,7 @@ begin
     Count := send(Socket, Data[Result], Size, 0);
     if Count <= 0 then
     begin
+      SSPError := 0;
       SSLError := 'send returns ' + IntToStr(WSAGetLastError);
       {$IFDEF LOG}WriteLn(SSLError);{$ENDIF}
       Exit(Count);
@@ -240,6 +248,8 @@ type
     Socket     : Integer;
   // Remote server name
     Servername : string;
+  // User specified certificat store
+     Store     : HCERTSTORE;
   // SChanel credentials
     SChannel   : SCHANNEL_CRED;
   // Credentials
@@ -287,6 +297,7 @@ begin
     MyStore := CertOpenSystemStore(0, 'MY');
     if MyStore = 0 then
     begin
+      SSPError := 0;
       SSLError := 'CertOpenSystemStore(0, ''MY'') returns 0';
       Exit;
     end;
@@ -294,7 +305,7 @@ begin
 
   FillChar(SChannel, SizeOf(SChannel), 0);
   SChannel.dwVersion := SCHANNEL_CRED_VERSION;
-  SChannel.grbitEnabledProtocols := SP_PROT_SSL3TLS1;//SP_PROT_TLS1;
+  SChannel.grbitEnabledProtocols := SP_PROT_TLS; // SP_PROT_TLS1_2;//SP_PROT_SSL3TLS1;//SP_PROT_TLS1;
   SChannel.dwFlags := SCH_CRED_NO_DEFAULT_CREDS or SCH_CRED_MANUAL_CRED_VALIDATION;
 
   Error := SSPI.AcquireCredentialsHandle(
@@ -314,6 +325,7 @@ begin
 {$ENDIF}
   if Error <> SEC_E_OK then
   begin
+    SSPError := Error;
     SSLError := 'AcquireCredentialsHandle returns ' + IntToHex(Error, 8);
     Exit;
   end;
@@ -353,6 +365,7 @@ begin
 
   if (Error <> SEC_I_CONTINUE_NEEDED) then
   begin
+    SSPError := Error;
     SSLError := 'First call to InitializeSecurityContext returns ' + IntToHex(Error, 8);
     Exit;
   end;
@@ -388,6 +401,8 @@ begin
   end;
   if iContext in Init then
   begin
+// détruit la session CPS quand on l'invoque dans un autre cas ?
+    if SSPError = HRESULT(SEC_E_ILLEGAL_MESSAGE) then
     SSPI.DeleteSecurityContext(@Context);
   end;
   Init := [];
@@ -407,6 +422,7 @@ begin
     Inc(RecvCount, Result);
   end else  begin
     Error := WSAGetLastError;
+    SSPError := 0;
     SSLError := 'recv returns ' + IntToHex(Error, 8);
   end;
 end;
@@ -459,6 +475,7 @@ begin
       // Session expires
       if Error = SEC_I_CONTEXT_EXPIRED then
       begin
+        SSPError := Error;
         SSLError := 'DecryptMessage returns SEC_I_CONTEXT_EXPIRED';
       {$IFDEF LOG}WriteLn(SSLError);{$ENDIF}
         Exit(-1);
@@ -616,6 +633,7 @@ begin
     if FAILED(Error) then
     begin
      {$IFDEF LOG}WriteLn('[SSL] ReadLoop.FAILED');{$ENDIF}
+      SSPError := Error;
       SSLError := 'InitializeSecurityContext returns ' + IntToHex(Error, 8);
       Exit(-1);
     end;
@@ -636,6 +654,7 @@ var
   ElementIndex: DWORD;
   pCertContext: PCCERT_CONTEXT;
   Creds: TCredHandle;
+  LStore: Integer;
 begin
   if Assigned(CredentialsCallBack) then
   begin
@@ -654,6 +673,7 @@ begin
   Error := SSPI.QueryContextAttributes(@Context, SECPKG_ATTR_ISSUER_LIST_EX, @Issuer);
   if Error <> SEC_E_OK then
   begin
+    SSPError := Error;
     SSLError := 'QueryContextAttributes(SECPKG_ATTR_ISSUER_LIST_EX) returns ' + IntToHex(Error, 8);
    {$IFDEF LOG}WriteLn('[SSL] ', SSLError);{$ENDIF}
     Exit(False);
@@ -675,10 +695,15 @@ begin
   ChainIndex := 0;
   ElementIndex := 0;
 
+  if Store = 0 then
+    LStore := MyStore
+  else
+    LStore := Store;
+
   ChainCtxt := nil;
   repeat
     ChainCtxt := CertFindChainInStore(
-      MyStore,
+      LStore,
       X509_ASN_ENCODING,
       0,
       CERT_CHAIN_FIND_BY_ISSUER,
@@ -687,6 +712,7 @@ begin
     );
     if ChainCtxt = nil then
     begin
+      SSPError := 0;
       SSLError := 'CertFindChainInStore returns nil';
     {$IFDEF LOG}
       WriteLn('[SSL] ', SSLError);
@@ -752,6 +778,7 @@ begin
 {$ENDIF}
   if Error <> 0 then
   begin
+    SSPError := Error;
     SSLError := 'QueryCredentialsAttributes returns ' + IntToHex(Error, 8);
     Exit(False);
   end;
@@ -815,7 +842,10 @@ begin
       else
         Result := Status.dwError = 0;
       if Result = False then
+      begin
+        SSPError := Status.dwError;
         SSLError := 'CertVerifyCertificateChainPolicy.Status = ' + IntToHex(Status.dwError, 8);// 800B0109
+    end;
     end;
 
     CertFreeCertificateChain(Chain);
@@ -831,6 +861,7 @@ begin
   Error := SSPI.QueryContextAttributes(@Context, SECPKG_ATTR_STREAM_SIZES, @BuffSizes);
   if Error <> SEC_E_OK then
   begin
+    SSPError := Error;
     SSLError := 'QueryContextAttributes(SECPKG_ATTR_STREAM_SIZES) returns ' + IntToHex(Error, 8);
     Exit(False);
   end;
@@ -894,6 +925,7 @@ begin
     Error := SSPI.EncryptMessage(@Context, 0, @Buffer, 0);
     if FAILED(Error) then
     begin
+      SSPError := Error;
       SSLError := 'EncryptMessage returns ' + IntToHex(Error, 8);
     {$IFDEF LOG}WriteLn(SSLError);{$ENDIF}
       Exit(-1);
@@ -905,16 +937,31 @@ begin
   end;
 end;
 
+var
+  secur32: THandle;
 
 function SSLAvailable: Boolean;
+var
+  init: function: PSecurityFunctionTable; stdcall;
 begin
   Result := Initialized;
+  SSPError := 0;
   if not Initialized then
   begin
    {$IFDEF LOG}WriteLn('SSLAvailable');{$ENDIF}
     Initialized := True;
 
-    SSPI := InitSecurityInterface();
+   // NB: il n'est pas possible de déinitialiser SSPI, il faut décharger la DLL pour se faire
+    secur32 := LoadLibrary('secur32.dll');
+    @init := GetProcAddress(secur32, 'InitSecurityInterfaceW');
+
+    if @init = nil then
+    begin
+      SSLError := 'InitSecurityInterface() not found';
+      Exit;
+    end;
+
+    SSPI := init();//InitSecurityInterface();
     if SSPI = nil then
     begin
       SSLError := 'InitSecurityInterface() returns nil';
@@ -932,7 +979,17 @@ begin
   end;
 end;
 
-function SSLStart(Socket: Integer; const Host: AnsiString = ''): Integer;
+procedure SSLShutdown;
+begin
+  if Initialized then
+  begin
+    FreeLibrary(secur32);
+    secur32 := 0;
+    Initialized := False;
+  end;
+end;
+
+function SSLStart(Socket: Integer; const Host: AnsiString = ''; Store: HCERTSTORE = 0): Integer;
 var
   Info: PSSLInfo;
 begin
@@ -948,6 +1005,7 @@ begin
 {$ENDIF}
   Result := 0;
   CertStatus := 0;
+  SSPError := 0;
   SSLError := '';
 
   if SSLAvailable = False then
@@ -960,10 +1018,14 @@ begin
   FillChar(Info^, SizeOf(TSSLInfo), 0);
   Info.Socket := Socket;
   Info.Servername := string(Host);
+  Info.Store := Store;
   if not Info.Start then
   begin
     Info.Clean;
     Dispose(Info);
+    if (SSPError = HRESULT(SEC_E_ILLEGAL_MESSAGE))
+    or (SSPError = HRESULT(SEC_E_INTERNAL_ERROR)) then
+      SSLShutdown;
     Exit;
   end;
 {$IFDEF TRACE}
@@ -1028,6 +1090,19 @@ begin
 {$ENDIF}
   Info.Clean;
   Dispose(Info);
+end;
+
+{ TSSLValidAll }
+
+function TSSLValidAll.ValidateChain(Chain: PCCERT_CHAIN_CONTEXT;
+  var Status: CERT_CHAIN_POLICY_STATUS): Boolean;
+begin
+  Result := True;
+end;
+
+function TSSLValidAll.ValidateElement(Element: PCERT_CHAIN_ELEMENT): Boolean;
+begin
+  Result := True;
 end;
 
 initialization
