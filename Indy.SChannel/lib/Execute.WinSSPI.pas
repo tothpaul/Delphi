@@ -1343,12 +1343,9 @@ function SerialNumber(const Number: CRYPT_INTEGER_BLOB): string;
 // 0006 ->  0,  6 -> 5
 // 0000 ->      0 -> 6
 var
-  Source: Integer;
   Index : Integer;
   Value : Integer;
   Digits: Integer;
-  Store : Integer;
-  Add   : Integer;
   Bytes : TArray<Byte>;
 begin
   Digits := Number.cbData;
