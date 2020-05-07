@@ -1,6 +1,6 @@
 unit Execute.SChannel;
 {
-   SChannel for Delphi Tokyo (c)2018 Execute SARL
+   SChannel for Delphi Tokyo-Rio (c)2018-2020 Execute SARL
 }
 interface
 {$IFDEF DEBUG}
@@ -31,25 +31,25 @@ type
     function ValidateElement(Element: PCERT_CHAIN_ELEMENT): Boolean; override;
   end;
 
-  TCredentialsCallBack = procedure(SSL: Integer; UserData: Pointer);
+  TCredentialsCallBack = procedure(SSL: THandle; UserData: Pointer);
 
 { Is SChannel available }
 function SSLAvailable: Boolean;
 procedure SSLShutdown;
 
 { Start a TLS connexion over a socket }
-function SSLStart(Socket: Integer; const Host: AnsiString = ''; Store: HCERTSTORE = 0): Integer;
+function SSLStart(Socket: TSocket; const Host: AnsiString = ''; Store: HCERTSTORE = 0): THandle;
 
-procedure SSLCredentialsCallBack(SSL: Integer; CallBack: TCredentialsCallBack; UserData: Pointer);
+procedure SSLCredentialsCallBack(SSL: THandle; CallBack: TCredentialsCallBack; UserData: Pointer);
 
 { some data left ? }
-function SSLPending(SSL: Integer): Boolean;
+function SSLPending(SSL: THandle): Boolean;
 { Read from the SSL handle }
-function SSLRead(SSL: Integer; var Data; Size: Integer): Integer;
+function SSLRead(SSL: THandle; var Data; Size: Integer): Integer;
 { Write to the SSL handle }
-function SSLWrite(SSL: Integer; var Data; Size: Integer): Integer;
+function SSLWrite(SSL: THandle; var Data; Size: Integer): Integer;
 { Close the SSL connexion }
-function SSLClose(SSL: Integer): Integer;
+function SSLClose(SSL: THandle): Integer;
 
 { If you wonder why the code is built like this, I have an Execute.OpenSSL unit that offers the same functions for OpenSSL }
 
@@ -197,7 +197,7 @@ begin
   Result := False;
 end;
 
-function SendData(Socket: Integer; Data: PByte; Size: Integer): Integer;
+function SendData(Socket: TSocket; Data: PByte; Size: Integer): Integer;
 var
   Count: Integer;
 begin
@@ -217,7 +217,7 @@ begin
   end;
 end;
 
-function SendSecBuffer(Socket: Integer; var Buffer: TSecBuffer): Boolean;
+function SendSecBuffer(Socket: TSocket; var Buffer: TSecBuffer): Boolean;
 begin
   Result := True;
   if (Buffer.cbBuffer > 0) and (Buffer.pvBuffer <> nil) then
@@ -245,7 +245,7 @@ type
     CredentialsCallBack: TCredentialsCallBack;
     UserData   : Pointer;
   // Connected socket
-    Socket     : Integer;
+    Socket     : TSocket;
   // Remote server name
     Servername : string;
   // User specified certificat store
@@ -293,7 +293,7 @@ begin
   begin
   {$IFDEF LOG}WriteLn('[SSL] CredentialsCallBack');{$ENDIF}
     CertCloseStore(MyStore, 0);
-    CredentialsCallBack(Integer(@Self), UserData);
+    CredentialsCallBack(THandle(@Self), UserData);
     MyStore := CertOpenSystemStore(0, 'MY');
     if MyStore = 0 then
     begin
@@ -660,7 +660,7 @@ begin
   begin
   {$IFDEF LOG}WriteLn('[SSL] CredentialsCallBack');{$ENDIF}
 //    CertCloseStore(MyStore, 0);
-    CredentialsCallBack(Integer(@Self), UserData);
+    CredentialsCallBack(THandle(@Self), UserData);
 //    MyStore := CertOpenSystemStore(0, 'MY');
 //    if MyStore = 0 then
 //    begin
@@ -989,7 +989,7 @@ begin
   end;
 end;
 
-function SSLStart(Socket: Integer; const Host: AnsiString = ''; Store: HCERTSTORE = 0): Integer;
+function SSLStart(Socket: TSocket; const Host: AnsiString = ''; Store: HCERTSTORE = 0): THandle;
 var
   Info: PSSLInfo;
 begin
@@ -1031,10 +1031,10 @@ begin
 {$IFDEF TRACE}
   TraceDump := False;
 {$ENDIF}
-  Result := Integer(Info);
+  Result := THandle(Info);
 end;
 
-procedure SSLCredentialsCallBack(SSL: Integer; CallBack: TCredentialsCallBack; UserData: Pointer);
+procedure SSLCredentialsCallBack(SSL: THandle; CallBack: TCredentialsCallBack; UserData: Pointer);
 var
   Info: PSSLInfo absolute SSL;
 begin
@@ -1045,7 +1045,7 @@ begin
   end;
 end;
 
-function SSLConnect(SSL: Integer): Boolean;
+function SSLConnect(SSL: THandle): Boolean;
 var
   Info: PSSLInfo absolute SSL;
 begin
@@ -1056,28 +1056,28 @@ begin
   end;
 end;
 
-function SSLPending(SSL: Integer): Boolean;
+function SSLPending(SSL: THandle): Boolean;
 var
   Info: PSSLInfo absolute SSL;
 begin
   Result := (Info <> nil) and (Info.Readable > 0);
 end;
 
-function SSLRead(SSL: Integer; var Data; Size: Integer): Integer;
+function SSLRead(SSL: THandle; var Data; Size: Integer): Integer;
 var
   Info: PSSLInfo absolute SSL;
 begin
   Result := Info.Decrypt(Data, Size);
 end;
 
-function SSLWrite(SSL: Integer; var Data; Size: Integer): Integer;
+function SSLWrite(SSL: THandle; var Data; Size: Integer): Integer;
 var
   Info: PSSLInfo absolute SSL;
 begin
   Result := Info.Encrypt(Data, Size);
 end;
 
-function SSLClose(SSL: Integer): Integer;
+function SSLClose(SSL: THandle): Integer;
 var
   Info: PSSLInfo absolute SSL;
 begin

@@ -1,8 +1,10 @@
 unit Execute.IdSSLSChannel;
 {
-  TLS SChannel for Indy (c)2018 Execute SARL
+  TLS SChannel for Indy (c)2018-2020 Execute SARL
 
 	2018.11.01 - added Proxy support
+
+  2020.05.07 - 64bits compatibility
 }
 interface
 {.$DEFINE LOG}
@@ -162,7 +164,7 @@ begin
 {$IFDEF LOG_EVENTS}System.WriteLn('TIdSSLIOHandlerSocketSChannel.SendEnc(', Length(ABuffer) ,') = ', Result);{$ENDIF}
 end;
 
-procedure DoCredentials(SSL: Integer; UserData: Pointer);
+procedure DoCredentials(SSL: THandle; UserData: Pointer);
 begin
   with TIdSSLIOHandlerSocketSChannel(UserData) do
   begin
