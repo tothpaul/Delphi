@@ -98,10 +98,22 @@ begin
 end;
 
 procedure TIdSSLIOHandlerSocketSChannel.ConnectClient;
+var
+  LPassThrough: Boolean;
 begin
 {$IFDEF LOG_EVENTS}System.WriteLn('TIdSSLIOHandlerSocketSChannel.ConnectClient');{$ENDIF}
-//  CloseSSL;
-  inherited;
+  // RLebeau 1/11/07: In case a proxy is being used, pass through
+  // any data from the base class unencrypted when setting up that
+  // connection.  We should do this anyway since SSL hasn't been
+  // initialized yet!
+  LPassThrough := fPassThrough;
+  fPassThrough := True;
+  try
+    inherited ConnectClient;
+  finally
+    fPassThrough := LPassThrough;
+  end;
+//  DoBeforeConnect(Self);
   StartSSL;
 end;
 
