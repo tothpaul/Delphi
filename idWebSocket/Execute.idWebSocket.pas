@@ -231,8 +231,8 @@ begin
   AResponseInfo.ResponseNo := 101; // HTTP/1.1 101 Switching Protocols
   AResponseInfo.ResponseText := 'Switching Protocols';
 
+  AResponseInfo.Connection := 'Upgrade'; // fix for Safari (but better solution anyway)
   AResponseInfo.CustomHeaders.AddValue('Upgrade', 'websocket');
-  AResponseInfo.CustomHeaders.AddValue('Connection', 'Upgrade');
   AResponseInfo.CustomHeaders.AddValue('Sec-WebSocket-Accept', Sign);
 
   AResponseInfo.ContentType := 'application/json'; // dummy
