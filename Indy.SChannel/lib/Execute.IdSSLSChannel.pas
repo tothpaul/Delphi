@@ -7,9 +7,14 @@ unit Execute.IdSSLSChannel;
   2020.05.07 - 64bits compatibility
 }
 interface
-{.$DEFINE LOG}
-{.$DEFINE LOG_DATA}
+{$IFDEF DEBUG}
 {.$DEFINE LOG_EVENTS}
+{.$DEFINE LOG_DATA}
+{$ENDIF}
+
+{$IFDEF LOG_EVENTS}{$DEFINE LOG}{$ENDIF}
+{$IFDEF LOG_DATA}{$DEFINE LOG}{$ENDIF}
+
 uses
 {$IFDEF LOG}
   Winapi.Windows,
@@ -19,6 +24,10 @@ uses
   IdGlobal,
   IdSSL,
   IdURI,
+  IdSocketHandle,
+  IdThread,
+  IdYarn,
+  IdIOHandler,
   IdCustomTransparentProxy,
   Execute.WinSSPI,
   Execute.SChannel;
@@ -32,11 +41,14 @@ type
 
   TCredentialsEvent = procedure(Sender: TObject) of object;
 
+  TSSLRecvEvent = procedure(Sender: TObject; const ABuffer: TIdBytes; Count: Integer) of object;
+
   TIdSSLIOHandlerSocketSChannel = class(TIdSSLIOHandlerSocketBase)
   private
     FSSL: THandle;
     FOnCredentials: TCredentialsEvent;
     FStore: HCERTSTORE;
+    FOnRecv: TSSLRecvEvent;
     procedure SetCredentials(Value: TCredentialsEvent);
     procedure ConnectSSL;
     procedure CloseSSL;
@@ -57,6 +69,7 @@ type
     function AddRoot(Root: Pointer; Size: Integer): Integer;
     procedure UnloadCertificat;
     property OnCredentials: TCredentialsEvent read FOnCredentials write SetCredentials;
+    property OnRecv: TSSLRecvEvent read FOnRecv write FOnRecv;
     property Store: HCERTSTORE read FStore;
   end;
 
@@ -136,7 +149,7 @@ begin
 }
  {$IFDEF LOG_EVENTS}System.WriteLn('TIdSSLIOHandlerSocketSChannel.Readable(', AMSec, ')');{$ENDIF}
   if (FSSL <> 0) and (PassThrough = False) then
-    Result := True
+    Result := SSLPending(FSSL, AMSec)
   else
     Result := inherited Readable(AMSec);
  {$IFDEF LOG_EVENTS}System.WriteLn('TIdSSLIOHandlerSocketSChannel.Readable(', AMSec, ') = ', Result);{$ENDIF}
@@ -147,7 +160,13 @@ begin
 {$IFDEF LOG_EVENTS}System.WriteLn('TIdSSLIOHandlerSocketSChannel.RecvEnc(', Length(ABuffer), ')');{$ENDIF}
   Result := SSLRead(FSSL, ABuffer[0], Length(ABuffer));
 {$IFDEF LOG_EVENTS}System.WriteLn('TIdSSLIOHandlerSocketSChannel.RecvEnc(', Length(ABuffer), ') = ', Result);{$ENDIF}
-{$IFDEF LOG_DATA}System.WriteLn(TEncoding.ANSI.GetString(TBytes(ABuffer), 0, Result));{$ENDIF}
+{$IFDEF LOG_DATA}
+  System.WriteLn('<<RECV>>');
+  System.Write(TEncoding.ANSI.GetString(TBytes(ABuffer), 0, Result));
+  System.WriteLn('<</RECV>>');
+{$ENDIF}
+  if Assigned(FOnRecv) then
+    FOnRecv(Self, ABuffer, Result);
 end;
 
 function TIdSSLIOHandlerSocketSChannel.SendEnc(const ABuffer: TIdBytes;
@@ -157,8 +176,12 @@ var
   Len: Integer;
   Cnt: Integer;
 begin
-{$IFDEF LOG_DATA}System.WriteLn(TEncoding.ANSI.GetString(TBytes(ABuffer), AOffset, ALength));{$ENDIF}
-{$IFDEF LOG__EVENTS}System.WriteLn('TIdSSLIOHandlerSocketSChannel.SendEnc(', Length(ABuffer) ,')');{$ENDIF}
+{$IFDEF LOG_DATA}
+  System.WriteLn('<<SEND>>');
+  System.Write(TEncoding.ANSI.GetString(TBytes(ABuffer), AOffset, ALength));
+  System.WriteLn('<</SEND>>');
+{$ENDIF}
+{$IFDEF LOG_EVENTS}System.WriteLn('TIdSSLIOHandlerSocketSChannel.SendEnc(', Length(ABuffer) ,')');{$ENDIF}
   Ofs := AOffset;
   Len := ALength;
   while Len > 0 do

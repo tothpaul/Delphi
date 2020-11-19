@@ -1,6 +1,6 @@
 unit Execute.WinSSPI;
 {
-  SChannel (SSPI + CryptoLib) (c)2017-2019 Execute SARL
+  SChannel (SSPI + CryptoLib) (c)2017-2020 Execute SARL
 
   partialy based on wcrypt2 (http://delphi-jedi.org)
 }
@@ -515,6 +515,67 @@ function CryptAcquireCertificatePrivateKey(
  var  pfCallerFreeProvOrNCryptKey: BOOL
 ): BOOL; stdcall; external 'crypt32.dll';
 
+const
+  CERT_STORE_PROV_MSG = (LPCSTR(1));
+  CERT_STORE_PROV_MEMORY = (LPCSTR(2));
+  CERT_STORE_PROV_FILE = (LPCSTR(3));
+  CERT_STORE_PROV_REG = (LPCSTR(4));
+
+  CERT_STORE_PROV_PKCS7 = (LPCSTR(5));
+  CERT_STORE_PROV_SERIALIZED = (LPCSTR(6));
+  CERT_STORE_PROV_FILENAME_A = (LPCSTR(7));
+  CERT_STORE_PROV_FILENAME_W = (LPCSTR(8));
+  CERT_STORE_PROV_FILENAME =  CERT_STORE_PROV_FILENAME_W;
+  CERT_STORE_PROV_SYSTEM_A = (LPCSTR(9));
+  CERT_STORE_PROV_SYSTEM_W =  (LPCSTR(10));
+  CERT_STORE_PROV_SYSTEM = CERT_STORE_PROV_SYSTEM_W;
+
+  CERT_STORE_NO_CRYPT_RELEASE_FLAG            = $00000001;
+  CERT_STORE_SET_LOCALIZED_NAME_FLAG          = $00000002;
+  CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG = $00000004;
+  CERT_STORE_DELETE_FLAG                      = $00000010;
+  CERT_STORE_MANIFOLD_FLAG                    = $00000100;
+  CERT_STORE_ENUM_ARCHIVED_FLAG               = $00000200;
+  CERT_STORE_UPDATE_KEYID_FLAG                = $00000400;
+  CERT_STORE_READONLY_FLAG                    = $00008000;
+  CERT_STORE_OPEN_EXISTING_FLAG               = $00004000;
+  CERT_STORE_CREATE_NEW_FLAG                  = $00002000;
+  CERT_STORE_MAXIMUM_ALLOWED_FLAG             = $00001000;
+
+function CertOpenStore(
+  lpszStoreProvider: LPCSTR;
+  dwEncodingType: DWORD;
+  hCryptProv: Pointer;//HCRYPTPROV_LEGACY;
+  dwFlags: DWORD;
+  pvPara: Pointer
+): HCERTSTORE; stdcall; external 'crypt32.dll';
+
+const
+  CRYPT_STRING_BASE64HEADER        = 0;
+  CRYPT_STRING_BASE64              = 1;
+  CRYPT_STRING_BINARY              = 2;
+  CRYPT_STRING_BASE64REQUESTHEADER = 3;
+  CRYPT_STRING_HEX                 = 4;
+  CRYPT_STRING_HEXASCII            = 5;
+  CRYPT_STRING_BASE64_ANY          = 6;
+  CRYPT_STRING_ANY                 = 7;
+  CRYPT_STRING_HEX_ANY             = 8;
+  CRYPT_STRING_BASE64X509CRLHEADER = 9;
+  CRYPT_STRING_HEXADDR             = 10;
+  CRYPT_STRING_HEXASCIIADDR        = 11;
+  CRYPT_STRING_HEXRAW              = 12;
+  CRYPT_STRING_STRICT              = 13;
+
+function CryptStringToBinaryA(
+  pszString: Pointer;
+  cchString: DWORD;
+  dwFlags  : DWORD;
+  pbBinary : Pointer;
+  pcbBinary: PDWORD;
+  pdwSkip  : PDWORD;
+  pdwFlags : PDWORD
+): BOOL; stdcall; external 'crypt32.dll';
+
 function CertCreateCertificateContext(
   dwCertEncodingType: DWORD;
   pbCertEncoded: Pointer;
@@ -525,6 +586,15 @@ function CertEnumCertificatesInStore(
   hCertStore       : HCERTSTORE;
   pPrevCertContext : PCCERT_CONTEXT
 ): PCCERT_CONTEXT; stdcall; external 'crypt32.dll';
+
+const
+  CERT_STORE_ADD_NEW = 1;
+  CERT_STORE_ADD_USE_EXISTING = 2;
+  CERT_STORE_ADD_REPLACE_EXISTING = 3;
+  CERT_STORE_ADD_ALWAYS = 4;
+  CERT_STORE_ADD_REPLACE_EXISTING_INHERIT_PROPERTIES = 5;
+  CERT_STORE_ADD_NEWER = 6;
+  CERT_STORE_ADD_NEWER_INHERIT_PROPERTIES = 7;
 
 function CertAddEncodedCertificateToStore(
   hCertStore        : HCERTSTORE;
@@ -572,8 +642,6 @@ const
   CERT_ARCHIVED_KEY_HASH_PROP_ID              = 65;
   CERT_FIRST_RESERVED_PROP_ID                 = 66;
   CERT_NCRYPT_KEY_HANDLE_PROP_ID              = 78;
-
-  CERT_STORE_ADD_USE_EXISTING = 2;
 
 function CertEnumCertificateContextProperties(
   pCertContext: PCCERT_CONTEXT;
@@ -952,7 +1020,11 @@ const
   SP_PROT_TLS1_2_CLIENT           = $00000800;
   SP_PROT_TLS1_2                  = (SP_PROT_TLS1_2_SERVER or SP_PROT_TLS1_2_CLIENT);
 
-  SP_PROT_TLS                     = SP_PROT_TLS1 or SP_PROT_TLS1_2;
+  SP_PROT_TLS1_3_SERVER           = $00001000;
+  SP_PROT_TLS1_3_CLIENT           = $00002000;
+  SP_PROT_TLS1_3                  = (SP_PROT_TLS1_3_SERVER or SP_PROT_TLS1_3_CLIENT);
+
+  SP_PROT_TLS                     = SP_PROT_TLS1 or SP_PROT_TLS1_2 or SP_PROT_TLS1_3;
 
   SP_PROT_SSL3TLS1_CLIENTS        = (SP_PROT_TLS1_CLIENT or SP_PROT_SSL3_CLIENT);
   SP_PROT_SSL3TLS1_SERVERS        = (SP_PROT_TLS1_SERVER or SP_PROT_SSL3_SERVER);
@@ -1240,6 +1312,7 @@ const
   CRYPT_DECODE_NOCOPY_FLAG = 1;
 
   X509_NAME = PAnsiChar(7);
+  PKCS_RSA_PRIVATE_KEY = PAnsiChar(43);
 
 function CryptDecodeObject(
      dwCertEncodingType : DWORD;

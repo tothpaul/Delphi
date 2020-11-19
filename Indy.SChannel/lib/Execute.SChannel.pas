@@ -1,6 +1,6 @@
 unit Execute.SChannel;
 {
-   SChannel for Delphi Tokyo-Rio (c)2018-2020 Execute SARL
+   SChannel for Delphi Tokyo-Rio-Syndey (c)2018-2020 Execute SARL
 }
 interface
 {$IFDEF DEBUG}
@@ -43,7 +43,7 @@ function SSLStart(Socket: TSocket; const Host: AnsiString = ''; Store: HCERTSTOR
 procedure SSLCredentialsCallBack(SSL: THandle; CallBack: TCredentialsCallBack; UserData: Pointer);
 
 { some data left ? }
-function SSLPending(SSL: THandle): Boolean;
+function SSLPending(SSL: THandle; AMSec: Integer): Boolean;
 { Read from the SSL handle }
 function SSLRead(SSL: THandle; var Data; Size: Integer): Integer;
 { Write to the SSL handle }
@@ -273,7 +273,7 @@ type
     function InitBuffer: Boolean;
     function GetClientCredentials: Boolean;
     function VerifyServer: Boolean;
-    function Readable: Integer;
+    function Readable(timeOut : Integer = 0): Integer;
     function Decrypt(var Data; Size: Integer): Integer;
     function Encrypt(var Data; Size: Integer): Integer;
   end;
@@ -305,7 +305,7 @@ begin
 
   FillChar(SChannel, SizeOf(SChannel), 0);
   SChannel.dwVersion := SCHANNEL_CRED_VERSION;
-  SChannel.grbitEnabledProtocols := SP_PROT_TLS; // SP_PROT_TLS1_2;//SP_PROT_SSL3TLS1;//SP_PROT_TLS1;
+  SChannel.grbitEnabledProtocols := SP_PROT_TLS;// or SP_PROT_SSL3; // SP_PROT_TLS1_2;//SP_PROT_SSL3TLS1;//SP_PROT_TLS1;
   SChannel.dwFlags := SCH_CRED_NO_DEFAULT_CREDS or SCH_CRED_MANUAL_CRED_VALIDATION;
 
   Error := SSPI.AcquireCredentialsHandle(
@@ -427,11 +427,13 @@ begin
   end;
 end;
 
-function TSSLInfo.Readable: Integer;
+function TSSLInfo.Readable(timeOut : Integer = 0): Integer;
 var
   Buffers: array[0..3] of TSecBuffer;
   Buffer : TSecBufferDesc;
   Index  : Integer;
+  FDread : TFDSet;
+  time   : TTimeVal;
 begin
   Result := DataCount - DataStart;
 
@@ -439,6 +441,16 @@ begin
   begin
     DataCount := 0;
     DataStart := 0;
+
+    if (RecvCount = 0) and (timeOut > 0) then
+    begin
+      FD_ZERO(FDread);
+      FD_SET(socket, FDread);
+      time.tv_sec := timeOut div 1000;
+      time.tv_usec := (timeOut mod 1000) * 1000;
+      if select(0, @FDread, nil ,nil, @time) < 1 then
+        Exit(0);
+    end;
 
     repeat
 
@@ -1056,11 +1068,11 @@ begin
   end;
 end;
 
-function SSLPending(SSL: THandle): Boolean;
+function SSLPending(SSL: THandle; AMSec: Integer): Boolean;
 var
   Info: PSSLInfo absolute SSL;
 begin
-  Result := (Info <> nil) and (Info.Readable > 0);
+  Result := (Info <> nil) and (Info.Readable(AMSec) > 0);
 end;
 
 function SSLRead(SSL: THandle; var Data; Size: Integer): Integer;
