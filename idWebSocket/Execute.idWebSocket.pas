@@ -74,7 +74,7 @@ begin
   if Len > 125 then
   begin
     Inc(c, 2);
-    if Len > 65535 then
+    if Len > $FFFF then
       Inc(c, 6);
   end;
   SetLength(FData, c);
@@ -88,7 +88,7 @@ begin
     FData[x] := Len; // MASK=0|LEN=??????
     Inc(x);
   end else begin
-    if Len < 65565 then
+    if Len <= $FFFF then
     begin
       FData[x] := 126;
       c := 2;
