@@ -2,6 +2,9 @@
 Delphi source code by Execute SARL
 http://www.execute.fr
 
+How to learn Dephi ?
+go to [learndelphi.org](https://learndelphi.org) and get free licenses !
+
 ## Projects
 
 - AciiShape
