@@ -542,7 +542,7 @@ var
   OutBuffer : TSecBufferDesc;
   DoRead    : Boolean;
   Flags     : DWORD;
-  Error     : Cardinal;
+  Error     : SECURITY_STATUS;
   Source    : PByte;
 begin
   // input data
