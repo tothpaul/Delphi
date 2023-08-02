@@ -1072,7 +1072,7 @@ function SSLPending(SSL: THandle; AMSec: Integer): Boolean;
 var
   Info: PSSLInfo absolute SSL;
 begin
-  Result := (Info <> nil) and (Info.Readable(AMSec) > 0);
+  Result := (Info <> nil) and (Info.Readable(AMSec) >= 0);
 end;
 
 function SSLRead(SSL: THandle; var Data; Size: Integer): Integer;
